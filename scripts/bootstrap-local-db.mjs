@@ -105,6 +105,18 @@ async function main() {
     await runFile(path.join(dir, f));
   }
 
+  // Newer migrations that only exist under supabase/migrations.
+  const extra = [
+    "20261107040000_confirm_staff_emails.sql",
+    "20261107043000_return_common_priority_reasons.sql",
+    "20261107050000_staff_work_sessions.sql",
+    "20261107060000_staff_webauthn.sql",
+  ];
+  for (const f of extra) {
+    const filePath = path.join(root, "supabase", "migrations", f);
+    if (fs.existsSync(filePath)) await runFile(filePath);
+  }
+
   // Seed a default staff user: admin@kijabe.local / admin1234
   const email = "admin@kijabe.local";
   const pass = "admin1234";

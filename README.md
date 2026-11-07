@@ -183,36 +183,26 @@ Small details matter here:
 
 ## Deploy
 
-### Vercel
+### Render
 
-<p>
-  <a href="https://vercel.com/new/clone?repository-url=https://github.com/Luffy254-cyber-spec/KijabeHospitalQueue"><img src="https://vercel.com/button" alt="Deploy with Vercel" /></a>
-</p>
+`render.yaml` is a complete blueprint: a Node web service plus a PostgreSQL instance, wired together through `DATABASE_URL`.
 
-The Nitro preset switches to `vercel` automatically when Vercel sets `VERCEL=1`, so the same `npm run build` produces `.vercel/output` for Vercel and the Cloudflare module build locally. `vercel.json` pins the framework to none and keeps the build command explicit.
+**Dashboard:**
 
-**Dashboard:** import the repository, keep the detected build command (`npm run build`), then add the environment variables below to Production and Preview.
+1. Render → **New → Blueprint**, connect `Luffy254-cyber-spec/KijabeHospitalQueue`, and apply. The build runs `npm ci && npm run build`; Nitro emits a Node server and `npm start` boots `.output/server/index.mjs` on Render's `PORT`.
+2. Fill the values marked `sync: false`: `GEMINI_API_KEY`, the M-Pesa credentials, `MPESA_CALLBACK_URL`, `VITE_PUBLIC_APP_URL` and `PUBLIC_APP_URL` (use the service URL Render gives you, e.g. `https://kijabe-careflow-queue.onrender.com`).
+3. The pre-deploy command `npm run db:bootstrap` creates the `auth` shim, applies every migration, and seeds `admin@kijabe.local` / `admin1234`. Sign in once and change that password.
+4. Redeploy after the first successful boot so ticket QRs pick up the final public URL.
 
-**CLI:**
+If the pre-deploy step is unavailable on your plan, run it once from the Render shell or from your machine against the database's **external** connection string:
 
 ```sh
-npm i -g vercel
-vercel link
-vercel env add DATABASE_URL production
-vercel env add AUTH_SECRET production
-vercel env add GEMINI_API_KEY production
-vercel env add MPESA_ENV production
-vercel env add MPESA_SHORTCODE production
-vercel env add MPESA_PASSKEY production
-vercel env add MPESA_CONSUMER_KEY production
-vercel env add MPESA_CONSUMER_SECRET production
-vercel env add MPESA_CALLBACK_URL production
-vercel env add VITE_PUBLIC_APP_URL production
-vercel env add PUBLIC_APP_URL production
-vercel --prod
+DATABASE_URL="postgres://…@…/kijabe_care_flow?sslmode=require" npm run db:bootstrap
 ```
 
-`VITE_PUBLIC_APP_URL` is baked in at build time — set it before the first deploy so ticket QR codes point at the public domain (for example `https://kijabehospitalqueue.vercel.app`).
+Free web services sleep after 15 minutes idle, which is not ideal for a kiosk or a waiting-room display; the Starter instance keeps them always-on. Free Render PostgreSQL expires after 30 days.
+
+`VITE_PUBLIC_APP_URL` is baked in at build time — set it before the first deploy so ticket QR codes point at the public domain.
 
 Ticket QRs resolve at runtime through `/api/public/app-origin`: a public deployment always returns its own origin (or the public `VITE_PUBLIC_APP_URL`), never a LAN address, so a phone on mobile data can scan a printed ticket and land on `https://<your-domain>/ticket/<id>`.
 
@@ -220,7 +210,7 @@ Ticket QRs resolve at runtime through `/api/public/app-origin`: a public deploym
 
 | Variable | Production value |
 | --- | --- |
-| `DATABASE_URL` | Hosted PostgreSQL URL (Neon, Supabase, Railway, RDS) |
+| `DATABASE_URL` | PostgreSQL URL (Render injects it from the blueprint) |
 | `AUTH_SECRET` | Long random string, different from development |
 | `GEMINI_API_KEY` | Gemini key for advisors and announcements |
 | `MPESA_ENV` | `production` for paybill 512900 |
@@ -241,7 +231,7 @@ Ticket QRs resolve at runtime through `/api/public/app-origin`: a public deploym
 
 ### Firebase Hosting
 
-`kijabeoutflow.firebaseapp.com` is Firebase’s default domain, not a Node runtime — it cannot serve SSR routes or `/api/mpesa/callback` by itself. Use Cloud Functions/Cloud Run for the server, or point M-Pesa at the Vercel deployment.
+`kijabeoutflow.firebaseapp.com` is Firebase’s default domain, not a Node runtime — it cannot serve SSR routes or `/api/mpesa/callback` by itself. Use Cloud Functions/Cloud Run for the server, or point M-Pesa at the Render deployment.
 
 ### Database
 
