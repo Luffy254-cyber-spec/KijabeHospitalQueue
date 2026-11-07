@@ -1,0 +1,45 @@
+CREATE OR REPLACE FUNCTION public.run_queue_automation(p_force boolean DEFAULT false)
+ RETURNS json
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare n_recall int := 0; n_noshow int := 0; n_requeue int := 0; n_open int := 0; n_close int := 0;
+  n_day int := 0; today date;
+begin
+  update automation_state set last_run = now() where id = 1 and (p_force or last_run < now() - interval '30 seconds');
+  if not found then return json_build_object('skipped', true); end if;
+
+  today := (now() at time zone 'Africa/Nairobi')::date;
+  if (select last_day_closed from automation_state where id = 1) is distinct from today then
+    n_day := public.close_day();
+  end if;
+
+  with r as (update tickets set called_at = now(), recall_count = recall_count + 1
+    where status = 'called' and called_at < now() - interval '2 minutes' and recall_count < 2 returning id, service_id, counter_id)
+  insert into ticket_events(ticket_id, action, service_id, counter_id, staff_email)
+    select id, 'auto_recall', service_id, counter_id, 'Automation' from r;
+  get diagnostics n_recall = row_count;
+
+  -- Auto no-show: return to same-department waiting (end of queue), do not abandon
+  with r as (update tickets set status = 'waiting', counter_id = null, called_at = null, started_at = null,
+      completed_at = null, recall_count = recall_count + 1, queued_at = now()
+    where status = 'called' and called_at < now() - interval '2 minutes' and recall_count >= 2
+    returning id, service_id, counter_id)
+  insert into ticket_events(ticket_id, action, service_id, counter_id, staff_email)
+    select id, 'auto_no_show', service_id, counter_id, 'Automation' from r;
+  get diagnostics n_noshow = row_count;
+
+  with q as (select s.id, s.surge_threshold, (select count(*) from tickets t where t.service_id = s.id and t.status = 'waiting') w from services s)
+  update counters c set active = true from q where c.service_id = q.id and c.overflow and not c.active and q.w >= q.surge_threshold;
+  get diagnostics n_open = row_count;
+  with q as (select s.id, s.surge_threshold, (select count(*) from tickets t where t.service_id = s.id and t.status = 'waiting') w from services s)
+  update counters c set active = false from q where c.service_id = q.id and c.overflow and c.active and q.w < q.surge_threshold / 2
+    and not exists (select 1 from tickets t where t.counter_id = c.id and t.status in ('called','serving'));
+  get diagnostics n_close = row_count;
+
+  return json_build_object(
+    'recalled', n_recall, 'no_show', n_noshow, 'requeued', n_requeue,
+    'overflow_opened', n_open, 'overflow_closed', n_close, 'day_closed', n_day
+  );
+end $function$

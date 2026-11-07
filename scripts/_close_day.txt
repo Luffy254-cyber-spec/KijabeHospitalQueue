@@ -1,0 +1,22 @@
+CREATE OR REPLACE FUNCTION public.close_day()
+ RETURNS integer
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare n int;
+begin
+  with r as (
+    update tickets
+      set status = 'closed', completed_at = coalesce(completed_at, now())
+      where status not in ('waiting', 'called', 'serving', 'done', 'closed')
+      returning id, service_id
+  )
+  insert into ticket_events(ticket_id, action, service_id, staff_email)
+    select id, 'day_close', service_id, 'Automation' from r;
+  get diagnostics n = row_count;
+  update automation_state
+    set last_day_closed = (now() at time zone 'Africa/Nairobi')::date
+    where id = 1;
+  return n;
+end $function$

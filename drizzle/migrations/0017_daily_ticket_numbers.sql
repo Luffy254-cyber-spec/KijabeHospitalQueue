@@ -1,0 +1,170 @@
+-- Waiting tickets keep their numbers across midnight.
+-- Only tickets generated after 00:00 Africa/Nairobi start again at 001.
+
+create or replace function public.close_day()
+returns int language plpgsql security definer set search_path = public as $$
+begin
+  return 0;
+end $$;
+
+CREATE OR REPLACE FUNCTION public.issue_visit(p_patient uuid, p_service_code text, p_visit_type text, p_payment text, p_triage text, p_triage_note text, p_language text, p_appt_at timestamp with time zone, p_appt_service text, p_payment_detail text DEFAULT NULL::text, p_insurer_id uuid DEFAULT NULL::uuid)
+ RETURNS json
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+
+declare s public.services; first_s public.services; n int; t public.tickets; ahead int; desks int; pr int;
+
+  pay text; path text[]; pat public.patients; detail text; ins public.insurance_providers;
+
+begin
+
+  select * into s from services where code = p_service_code;
+
+  if s.id is null then raise exception 'Unknown service'; end if;
+
+  select * into pat from patients where id = p_patient;
+
+  if pat.id is null then raise exception 'Unknown patient'; end if;
+
+  if p_visit_type not in ('walk_in','booked') then raise exception 'Invalid visit type'; end if;
+
+  if p_payment not in ('cash','card','insurance','sha') then raise exception 'Invalid payment'; end if;
+
+  if p_triage not in ('red','orange','green') then raise exception 'Invalid triage'; end if;
+
+
+
+  detail := nullif(trim(coalesce(p_payment_detail,'')), '');
+
+  if p_payment = 'card' and detail is null then raise exception 'Card brand required'; end if;
+
+  if p_payment = 'insurance' then
+
+    if p_insurer_id is null then raise exception 'Insurance provider required'; end if;
+
+    select * into ins from insurance_providers where id = p_insurer_id and active;
+
+    if ins.id is null then raise exception 'Unknown or inactive insurer'; end if;
+
+    detail := coalesce(detail, ins.name);
+
+  end if;
+
+  if p_payment = 'sha' and p_insurer_id is null then
+
+    select id, name into ins from insurance_providers where code = 'SHA' and active limit 1;
+
+    p_insurer_id := ins.id;
+
+    detail := coalesce(detail, ins.name, 'SHA');
+
+  end if;
+
+
+
+  -- Close any open triage/registration placeholders when issuing a fuller visit
+
+  if p_service_code not in ('triage','registration') then
+
+    update tickets tk set status = 'done', completed_at = now()
+
+    from services sv
+
+    where tk.service_id = sv.id and sv.code in ('triage','registration')
+
+      and tk.patient_id = p_patient and tk.status in ('waiting','called','serving')
+
+      and coalesce(array_length(tk.care_path,1),0) <= 1;
+
+  end if;
+
+
+
+  -- Care path: clinics always start at triage; card bills at cashier like cash
+
+  pay := case p_payment
+
+    when 'cash' then 'cashier'
+
+    when 'card' then 'cashier'
+
+    when 'insurance' then 'insurance'
+
+    else 'sha' end;
+
+  if s.category = 'clinic' then path := array['triage', s.code, pay];
+
+  elsif s.code in ('pharmacy','lab','radiology','physio') then path := array['triage', pay, s.code];
+
+  elsif s.code = 'triage' then path := array['triage','consultation', pay];
+
+  elsif s.code = 'emergency' then path := array['emergency', pay];
+
+  elsif s.code = 'registration' then path := array['triage'];
+
+  else path := array['triage', s.code]; end if;
+
+
+
+  if p_triage = 'red' and path[1] <> 'triage' and s.code <> 'emergency' then
+
+    path := array['triage'] || path;
+
+  end if;
+
+
+
+  pr := case when p_triage in ('red','orange') then 1 else 0 end;
+
+  select * into first_s from services where code = path[1];
+
+  insert into daily_sequences(service_id, day, last_no) values (first_s.id, (now() at time zone 'Africa/Nairobi')::date, 1)
+    on conflict (service_id, day) do update set last_no = daily_sequences.last_no + 1 returning last_no into n;
+
+  insert into tickets(token, service_id, visit_type, payment, priority, phone, language, patient_id,
+
+    triage_level, triage_note, care_path, path_step, appointment_at, appointment_service, payment_detail, insurer_id)
+
+  values (
+
+    first_s.prefix || '-' || case when n < 100 then lpad(n::text, 3, '0') else n::text end,
+
+    first_s.id, p_visit_type, p_payment, pr, pat.phone, coalesce(p_language,'en'), pat.id,
+
+    p_triage, left(p_triage_note, 200), path, 0, p_appt_at, nullif(p_appt_service,''), detail, p_insurer_id
+
+  ) returning * into t;
+
+  update patients set last_visit_at = now(), last_service = s.name_en where id = pat.id;
+
+  insert into ticket_events(ticket_id, action, service_id) values (t.id, 'issued', first_s.id);
+
+  select count(*) into ahead from tickets x where x.service_id = first_s.id and x.status = 'waiting' and x.id <> t.id
+
+    and (x.priority > t.priority or (x.priority = t.priority and x.queued_at <= t.queued_at));
+
+  select greatest(count(*),1) into desks from counters where service_id = first_s.id and active;
+
+  return json_build_object(
+
+    'id', t.id, 'token', t.token, 'ahead', ahead,
+
+    'est_minutes', ceil(ahead * first_s.avg_minutes / desks::numeric),
+
+    'service_en', first_s.name_en, 'service_sw', first_s.name_sw,
+
+    'created_at', t.created_at, 'triage', t.triage_level,
+
+    'payment', t.payment, 'payment_detail', t.payment_detail,
+
+    'path', (select json_agg(json_build_object('en', x.name_en, 'sw', x.name_sw) order by ord)
+
+      from unnest(path) with ordinality u(c, ord) join services x on x.code = u.c),
+
+    'card_no', pat.card_no);
+
+end $function$
+
+

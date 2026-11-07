@@ -1,0 +1,166 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 300" width="1280" height="300" role="img" aria-labelledby="heroTitle heroDesc">
+  <title id="heroTitle">Kijabe Care Flow</title>
+  <desc id="heroDesc">A neon outpatient queue banner: a glowing ECG line runs through a futuristic ticket card in Kijabe blue.</desc>
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#03101c"/>
+      <stop offset="0.55" stop-color="#071f33"/>
+      <stop offset="1" stop-color="#0b2c48"/>
+    </linearGradient>
+
+    <linearGradient id="neon" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#159ed5" stop-opacity="0"/>
+      <stop offset="0.18" stop-color="#159ed5"/>
+      <stop offset="0.5" stop-color="#8be9ff"/>
+      <stop offset="0.82" stop-color="#60a5fa"/>
+      <stop offset="1" stop-color="#159ed5" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="neonVertical" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8be9ff"/>
+      <stop offset="0.5" stop-color="#159ed5"/>
+      <stop offset="1" stop-color="#60a5fa"/>
+    </linearGradient>
+
+    <linearGradient id="ecg" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#159ed5" stop-opacity="0.05"/>
+      <stop offset="0.3" stop-color="#8be9ff"/>
+      <stop offset="0.62" stop-color="#7dd3fc"/>
+      <stop offset="1" stop-color="#159ed5" stop-opacity="0.05"/>
+    </linearGradient>
+
+    <radialGradient id="halo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#159ed5" stop-opacity="0.5"/>
+      <stop offset="0.6" stop-color="#0c729c" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#0c729c" stop-opacity="0"/>
+    </radialGradient>
+
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#1d577a" stroke-width="1" opacity="0.35"/>
+    </pattern>
+
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="softGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="16"/>
+    </filter>
+
+    <style>
+      .stream-a {
+        stroke-dasharray: 180 260;
+        animation: flow-a 9s linear infinite;
+      }
+      .stream-b {
+        stroke-dasharray: 140 300;
+        animation: flow-b 11s linear infinite;
+      }
+      .ecg-line {
+        stroke-dasharray: 110 900;
+        animation: ecg-flow 4.8s linear infinite;
+      }
+      .pulse {
+        animation: pulse 3.2s ease-in-out infinite;
+      }
+      .pulse-slow {
+        animation: pulse 5s ease-in-out infinite;
+      }
+      .card {
+        animation: drift 7s ease-in-out infinite;
+      }
+      .blink {
+        animation: pulse 1.6s ease-in-out infinite;
+      }
+      @keyframes flow-a {
+        to { stroke-dashoffset: -880; }
+      }
+      @keyframes flow-b {
+        to { stroke-dashoffset: 880; }
+      }
+      @keyframes ecg-flow {
+        to { stroke-dashoffset: -1010; }
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 0.35; }
+        50% { opacity: 1; }
+      }
+      @keyframes drift {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .stream-a, .stream-b, .ecg-line, .pulse, .pulse-slow, .card, .blink {
+          animation: none;
+        }
+      }
+    </style>
+  </defs>
+
+  <rect width="1280" height="300" fill="url(#bg)"/>
+  <rect width="1280" height="300" fill="url(#grid)"/>
+  <ellipse cx="1010" cy="150" rx="330" ry="170" fill="url(#halo)"/>
+
+  <!-- flowing neon streams -->
+  <path class="stream-a" d="M-40 34 C 220 6, 380 66, 640 40 S 1080 4, 1320 44" fill="none" stroke="url(#neon)" stroke-width="2.5" filter="url(#glow)"/>
+  <path class="stream-b" d="M-40 272 C 240 296, 420 236, 660 262 S 1060 300, 1320 258" fill="none" stroke="url(#neon)" stroke-width="2" opacity="0.85"/>
+
+  <!-- ECG trace -->
+  <path d="M0 214 H96 l12 0 10 -30 14 58 12 -28 16 0 H352 l12 0 10 -36 14 70 12 -34 18 0 H742 l12 0 10 -26 14 52 12 -26 16 0 H1280"
+        fill="none" stroke="url(#ecg)" stroke-width="7" opacity="0.5" filter="url(#softGlow)"/>
+  <path d="M0 214 H96 l12 0 10 -30 14 58 12 -28 16 0 H352 l12 0 10 -36 14 70 12 -34 18 0 H742 l12 0 10 -26 14 52 12 -26 16 0 H1280"
+        fill="none" stroke="url(#ecg)" stroke-width="2" opacity="0.5"/>
+  <path class="ecg-line" d="M0 214 H96 l12 0 10 -30 14 58 12 -28 16 0 H352 l12 0 10 -36 14 70 12 -34 18 0 H742 l12 0 10 -26 14 52 12 -26 16 0 H1280"
+        fill="none" stroke="#b9f4ff" stroke-width="2.6" filter="url(#glow)"/>
+
+  <!-- wordmark -->
+  <g font-family="ui-sans-serif, system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+    <text x="72" y="92" fill="#7dd3fc" font-size="14" font-weight="600" letter-spacing="6">AIC KIJABE HOSPITAL</text>
+    <text x="68" y="158" fill="#eaf7ff" font-size="58" font-weight="800" letter-spacing="2">CARE FLOW</text>
+    <text x="72" y="190" fill="#9fc9e2" font-size="17" letter-spacing="0.6">Outpatient queue intelligence — registration to pharmacy, in real time.</text>
+    <g fill="#5fb7dd" font-size="11" letter-spacing="3">
+      <text x="72" y="230">KIOSK</text>
+      <text x="146" y="230">·</text>
+      <text x="166" y="230">STAFF CONSOLE</text>
+      <text x="318" y="230">·</text>
+      <text x="338" y="230">TV DISPLAY</text>
+      <text x="446" y="230">·</text>
+      <text x="466" y="230">M-PESA</text>
+    </g>
+  </g>
+
+  <!-- neon ticket -->
+  <g class="card" transform="translate(0 0)">
+    <rect x="930" y="66" width="286" height="162" rx="20" fill="#08243a" stroke="url(#neonVertical)" stroke-width="1.6" filter="url(#glow)"/>
+    <rect x="942" y="78" width="262" height="138" rx="14" fill="none" stroke="#1d577a" stroke-width="1" opacity="0.8"/>
+    <g font-family="ui-sans-serif, system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+      <text x="966" y="106" fill="#7dd3fc" font-size="11" letter-spacing="4">NOW SERVING</text>
+      <text x="962" y="162" fill="#f2fbff" font-size="46" font-weight="800" letter-spacing="1">A-024</text>
+      <text x="966" y="188" fill="#8fe3ff" font-size="12" letter-spacing="2">ROOM 12 · OPD</text>
+    </g>
+    <circle class="blink" cx="1188" cy="100" r="4" fill="#7cf5d5"/>
+    <g fill="none" stroke="#159ed5" stroke-width="2" opacity="0.9">
+      <path d="M930 128 H946"/>
+      <path d="M1200 128 H1216"/>
+      <path d="M930 170 H946"/>
+      <path d="M1200 170 H1216"/>
+    </g>
+  </g>
+
+  <!-- pulse nodes -->
+  <g fill="none" stroke="#159ed5" stroke-width="1.4">
+    <circle class="pulse" cx="880" cy="60" r="7" opacity="0.6"/>
+    <circle class="pulse-slow" cx="900" cy="226" r="10" opacity="0.45"/>
+    <circle class="pulse" cx="828" cy="182" r="5" opacity="0.5"/>
+  </g>
+  <g fill="#9be9ff">
+    <circle cx="880" cy="60" r="2.4"/>
+    <circle cx="900" cy="226" r="3"/>
+    <circle cx="828" cy="182" r="2"/>
+  </g>
+</svg>

@@ -1,0 +1,7 @@
+- Queue state changes (issue, call, recall, transfer, complete) go through security-definer Postgres functions; why: atomic numbering/calling and a guaranteed audit row per staff action.
+- ticket_events is the append-only audit trail (staff can read, never write directly) and must hold no patient identifiers; why: compliance with the no-patient-details audit requirement.
+- Kiosk, TV display and ticket status page are anonymous and only use RPCs, never direct table reads; why: phone numbers stay hidden from the public.
+- AI calls go through server functions in src/lib/*.functions.ts calling Gemini with GEMINI_API_KEY, behind staff sign-in; why: keeps prompts and keys server-side and the advisor non-public.
+- Queue automation lives in run_queue_automation(), driven by per-department rows in automation_settings; a pg_cron job runs it every minute in clinic hours, and display polls also wake it (30s throttle); why: user required automation to run without the TV.
+- Automation thresholds have one source of bounds/simulation logic in src/lib/automation.ts mirroring the DB checks; only user_roles admins may update settings; why: AI suggestions and simulations stay within what the live queue accepts.
+- Staff access requires a user_roles row (staff or admin, checked by is_staff()); a signed-in account alone grants nothing; why: open sign-up must not expose queue data or actions.
