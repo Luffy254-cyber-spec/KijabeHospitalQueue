@@ -181,12 +181,69 @@ Small details matter here:
 
 ---
 
-## Deployment notes
+## Deploy
 
-- **Vercel** — the build currently targets Nitro’s `cloudflare-module` preset. Set a Vercel/Nitro preset (or let Nitro auto-detect) before deploying there.
-- **Firebase Hosting** — `kijabeoutflow.firebaseapp.com` is Firebase’s default domain, not a Node runtime; it cannot serve `/api/mpesa/callback` on its own. Use Cloud Functions/Cloud Run, or point M-Pesa at the Vercel deployment.
-- **Database** — either deployment needs a reachable PostgreSQL instance; a local `localhost` database will not be reachable from the cloud.
-- **Daraja** — the M-Pesa callback must be public HTTPS, and the passkey/shortcode pair must match `MPESA_ENV`.
+### Vercel
+
+<p>
+  <a href="https://vercel.com/new/clone?repository-url=https://github.com/Luffy254-cyber-spec/KijabeHospitalQueue"><img src="https://vercel.com/button" alt="Deploy with Vercel" /></a>
+</p>
+
+The Nitro preset switches to `vercel` automatically when Vercel sets `VERCEL=1`, so the same `npm run build` produces `.vercel/output` for Vercel and the Cloudflare module build locally. `vercel.json` pins the framework to none and keeps the build command explicit.
+
+**Dashboard:** import the repository, keep the detected build command (`npm run build`), then add the environment variables below to Production and Preview.
+
+**CLI:**
+
+```sh
+npm i -g vercel
+vercel link
+vercel env add DATABASE_URL production
+vercel env add AUTH_SECRET production
+vercel env add GEMINI_API_KEY production
+vercel env add MPESA_ENV production
+vercel env add MPESA_SHORTCODE production
+vercel env add MPESA_PASSKEY production
+vercel env add MPESA_CONSUMER_KEY production
+vercel env add MPESA_CONSUMER_SECRET production
+vercel env add MPESA_CALLBACK_URL production
+vercel env add VITE_PUBLIC_APP_URL production
+vercel env add PUBLIC_APP_URL production
+vercel --prod
+```
+
+`VITE_PUBLIC_APP_URL` is baked in at build time — set it before the first deploy so ticket QR codes point at the public domain (for example `https://kijabehospitalqueue.vercel.app`).
+
+### Environment variables for hosting
+
+| Variable | Production value |
+| --- | --- |
+| `DATABASE_URL` | Hosted PostgreSQL URL (Neon, Supabase, Railway, RDS) |
+| `AUTH_SECRET` | Long random string, different from development |
+| `GEMINI_API_KEY` | Gemini key for advisors and announcements |
+| `MPESA_ENV` | `production` for paybill 512900 |
+| `MPESA_SHORTCODE` | `512900` |
+| `MPESA_PASSKEY` | Production passkey for that shortcode |
+| `MPESA_CONSUMER_KEY` / `MPESA_CONSUMER_SECRET` | Daraja **production** app credentials |
+| `MPESA_CALLBACK_URL` | `https://<your-domain>/api/mpesa/callback` |
+| `VITE_PUBLIC_APP_URL` | `https://<your-domain>` |
+| `PUBLIC_APP_URL` | `https://<your-domain>` |
+
+### Finishing M-Pesa for production
+
+1. Open the Daraja portal and confirm the app is a **production** app (sandbox keys are rejected by `api.safaricom.co.ke`).
+2. Copy the **Lipa na M-Pesa Online passkey** shown for shortcode `512900` — the sandbox test passkey will not authenticate a live paybill.
+3. Set `MPESA_ENV=production`, the shortcode, the production passkey, and the production consumer key/secret.
+4. Set `MPESA_CALLBACK_URL` to the deployed domain. It must be public HTTPS and end in `/api/mpesa/callback`; Safaricom will not post to localhost. For local testing, expose the dev server through a tunnel and temporarily use that URL.
+5. Pay a small amount through the staff console, then confirm the ticket shows a receipt and `payments` reconciles via the callback.
+
+### Firebase Hosting
+
+`kijabeoutflow.firebaseapp.com` is Firebase’s default domain, not a Node runtime — it cannot serve SSR routes or `/api/mpesa/callback` by itself. Use Cloud Functions/Cloud Run for the server, or point M-Pesa at the Vercel deployment.
+
+### Database
+
+Either host needs a reachable PostgreSQL instance; `localhost` is not reachable from the cloud. Run `npm run db:bootstrap` against the hosted database, and confirm the `pg_cron` automation job is available (or drive `run_queue_automation()` from the display poller, which already wakes it).
 
 ---
 

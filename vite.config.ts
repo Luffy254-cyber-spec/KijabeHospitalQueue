@@ -40,7 +40,9 @@ export default defineConfig(({ command, mode }) => {
         // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
         server: { entry: "server" },
       }),
-      ...(command === "build" ? [nitro({ defaultPreset: "cloudflare-module" })] : []),
+      ...(command === "build"
+        ? [nitro({ defaultPreset: process.env["VERCEL"] ? "vercel" : "cloudflare-module" })]
+        : []),
       react(),
     ],
     server: { host: "::", port: 8080 },
