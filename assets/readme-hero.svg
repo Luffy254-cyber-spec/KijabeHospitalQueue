@@ -123,15 +123,6 @@
     <text x="72" y="92" fill="#7dd3fc" font-size="14" font-weight="600" letter-spacing="6">AIC KIJABE HOSPITAL</text>
     <text x="68" y="158" fill="#eaf7ff" font-size="58" font-weight="800" letter-spacing="2">CARE FLOW</text>
     <text x="72" y="190" fill="#9fc9e2" font-size="17" letter-spacing="0.6">Outpatient queue intelligence — registration to pharmacy, in real time.</text>
-    <g fill="#5fb7dd" font-size="11" letter-spacing="3">
-      <text x="72" y="230">KIOSK</text>
-      <text x="146" y="230">·</text>
-      <text x="166" y="230">STAFF CONSOLE</text>
-      <text x="318" y="230">·</text>
-      <text x="338" y="230">TV DISPLAY</text>
-      <text x="446" y="230">·</text>
-      <text x="466" y="230">M-PESA</text>
-    </g>
   </g>
 
   <!-- neon ticket -->
