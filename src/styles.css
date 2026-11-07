@@ -2230,3 +2230,24 @@ html {
     animation: none;
   }
 }
+
+/* —— Ticket completion blessing —— */
+.ticket-blessing {
+  animation: ticket-blessing-glow 5s ease-in-out infinite;
+}
+@keyframes ticket-blessing-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(21, 158, 213, 0);
+  }
+  50% {
+    box-shadow:
+      0 18px 44px -24px rgba(21, 158, 213, 0.65),
+      0 0 0 1px rgba(124, 245, 213, 0.18);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ticket-blessing {
+    animation: none;
+  }
+}

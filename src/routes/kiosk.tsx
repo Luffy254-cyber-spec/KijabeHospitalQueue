@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Delete, Printer, UserCheck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { t, type Lang, type Key } from "@/lib/i18n";
-import { isLocalHostOrigin, publicAppOrigin, ticketTrackUrl } from "@/lib/public-url";
+import { publicAppOrigin, ticketTrackUrl } from "@/lib/public-url";
 import { capitalizeName } from "@/lib/names";
 
 export const Route = createFileRoute("/kiosk")({
@@ -84,7 +84,8 @@ function Kiosk() {
   }, []);
 
   useEffect(() => {
-    if (!isLocalHostOrigin(publicAppOrigin())) return;
+    // Resolve the public origin every time: on Vercel this is the deployment
+    // domain, on the hospital LAN it falls back to the kiosk's network address.
     fetch("/api/public/app-origin")
       .then((r) => r.json())
       .then((j: { origin?: string }) => { if (j.origin) setTrackBase(j.origin.replace(/\/$/, "")); })

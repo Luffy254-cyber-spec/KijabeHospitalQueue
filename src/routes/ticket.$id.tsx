@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Star } from "lucide-react";
+import { Sparkles, Star } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -47,8 +47,12 @@ const STATUS_TEXT: Record<string, string> = {
   called: "It's your turn — please go to the room shown",
   serving: "Being served",
   done: "Visit complete",
+  closed: "Visit closed",
+  cancelled: "Visit cancelled",
   no_show: "Missed — please see the help desk",
 };
+
+const DISCHARGED = new Set(["done", "closed", "cancelled"]);
 
 function TicketPage() {
   const { id } = Route.useParams();
@@ -90,6 +94,7 @@ function TicketPage() {
 
   const pay = s.payment_status;
   const called = s.status === "called";
+  const discharged = DISCHARGED.has(s.status);
 
   return (
     <main className="min-h-screen bg-background p-6">
@@ -111,6 +116,17 @@ function TicketPage() {
             <p className="mt-2 text-muted-foreground">{s.ahead} ahead of you · about {s.est_minutes} min</p>
           )}
         </div>
+
+        {discharged && (
+          <div className="ticket-blessing mt-4 overflow-hidden rounded-3xl border border-success/30 bg-gradient-to-br from-success/15 via-card to-primary/15 p-6 text-center">
+            <Sparkles className="mx-auto h-8 w-8 text-success" aria-hidden />
+            <p className="mt-3 font-display text-2xl font-extrabold tracking-tight">Quick recovery</p>
+            <p className="mt-1 text-sm text-muted-foreground">May God bless you · Mungu akubariki</p>
+            <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.28em] text-success">
+              Visit complete · Huduma imekamilika
+            </p>
+          </div>
+        )}
 
         {pay?.found && (
           <div className={`mt-4 rounded-2xl border p-4 ${pay.paid ? "border-success/40 bg-success/10" : "bg-card"}`}>

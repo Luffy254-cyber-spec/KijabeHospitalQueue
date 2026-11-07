@@ -214,6 +214,8 @@ vercel --prod
 
 `VITE_PUBLIC_APP_URL` is baked in at build time — set it before the first deploy so ticket QR codes point at the public domain (for example `https://kijabehospitalqueue.vercel.app`).
 
+Ticket QRs resolve at runtime through `/api/public/app-origin`: a public deployment always returns its own origin (or the public `VITE_PUBLIC_APP_URL`), never a LAN address, so a phone on mobile data can scan a printed ticket and land on `https://<your-domain>/ticket/<id>`.
+
 ### Environment variables for hosting
 
 | Variable | Production value |
