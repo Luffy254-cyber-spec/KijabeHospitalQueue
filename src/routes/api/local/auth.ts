@@ -12,15 +12,9 @@ import {
 } from "@/lib/local-auth.server";
 import { confirmStaffEmail } from "@/lib/firebase-mail.server";
 import { mailContinueOrigin } from "@/lib/mail-origin.server";
-import {
-  webauthnHasCredentials,
-  webauthnLoginOptions,
-  webauthnLoginOptionsByWorkId,
-  webauthnLoginVerify,
-  webauthnLoginVerifyByWorkId,
-  webauthnRegisterOptions,
-  webauthnRegisterVerify,
-} from "@/lib/webauthn.server";
+// Loaded on demand: @simplewebauthn/server drags in tsyringe, which asserts a
+// Reflect polyfill at import time — so load the polyfill first, then the lib.
+const loadWebauthn = () => import("@/lib/webauthn.server");
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from "@simplewebauthn/server";
 
 const cors = {
@@ -144,14 +138,16 @@ export const Route = createFileRoute("/api/local/auth")({
             const user = verifyToken(body.token || null);
             return Response.json({ user }, { headers: cors });
           }
+          const wa = String(body.action).startsWith("webauthn") ? await loadWebauthn() : null;
           if (body.action === "webauthn-status") {
-            const enrolled = body.email ? await webauthnHasCredentials(body.email) : false;
+            const enrolled = body.email && wa ? await wa.webauthnHasCredentials(body.email) : false;
             return Response.json({ enrolled }, { headers: cors });
           }
           if (body.action === "webauthn-register-options") {
             const user = bearerUser(request);
             if (!user) return Response.json({ error: "Sign in first to enroll biometrics" }, { status: 401, headers: cors });
-            const options = await webauthnRegisterOptions(user, webauthnOrigin);
+            if (!wa) return Response.json({ error: "Unknown action" }, { status: 400, headers: cors });
+            const options = await wa.webauthnRegisterOptions(user, webauthnOrigin);
             return Response.json({ options }, { headers: cors });
           }
           if (body.action === "webauthn-register-verify") {
@@ -160,7 +156,8 @@ export const Route = createFileRoute("/api/local/auth")({
             if (!body.credential) {
               return Response.json({ error: "Missing biometric credential" }, { status: 400, headers: cors });
             }
-            const result = await webauthnRegisterVerify(
+            if (!wa) return Response.json({ error: "Unknown action" }, { status: 400, headers: cors });
+            const result = await wa.webauthnRegisterVerify(
               user,
               webauthnOrigin,
               body.credential as RegistrationResponseJSON,
@@ -169,14 +166,16 @@ export const Route = createFileRoute("/api/local/auth")({
             return Response.json(result, { headers: cors });
           }
           if (body.action === "webauthn-login-options") {
-            const r = await webauthnLoginOptions(body.email || "", webauthnOrigin);
+            if (!wa) return Response.json({ error: "Unknown action" }, { status: 400, headers: cors });
+            const r = await wa.webauthnLoginOptions(body.email || "", webauthnOrigin);
             return Response.json(r, { headers: cors });
           }
           if (body.action === "webauthn-login-verify") {
             if (!body.credential) {
               return Response.json({ error: "Missing biometric assertion" }, { status: 400, headers: cors });
             }
-            const s = await webauthnLoginVerify(
+            if (!wa) return Response.json({ error: "Unknown action" }, { status: 400, headers: cors });
+            const s = await wa.webauthnLoginVerify(
               body.email || "",
               webauthnOrigin,
               body.credential as AuthenticationResponseJSON,
@@ -190,14 +189,16 @@ export const Route = createFileRoute("/api/local/auth")({
             return Response.json(result, { headers: cors });
           }
           if (body.action === "webauthn-login-options-workid") {
-            const r = await webauthnLoginOptionsByWorkId(body.workId || "", webauthnOrigin);
+            if (!wa) return Response.json({ error: "Unknown action" }, { status: 400, headers: cors });
+            const r = await wa.webauthnLoginOptionsByWorkId(body.workId || "", webauthnOrigin);
             return Response.json(r, { headers: cors });
           }
           if (body.action === "webauthn-login-verify-workid") {
             if (!body.credential) {
               return Response.json({ error: "Missing biometric assertion" }, { status: 400, headers: cors });
             }
-            const s = await webauthnLoginVerifyByWorkId(
+            if (!wa) return Response.json({ error: "Unknown action" }, { status: 400, headers: cors });
+            const s = await wa.webauthnLoginVerifyByWorkId(
               body.workId || "",
               webauthnOrigin,
               body.credential as AuthenticationResponseJSON,
