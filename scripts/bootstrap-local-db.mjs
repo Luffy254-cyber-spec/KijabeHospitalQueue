@@ -13,7 +13,8 @@ const root = path.join(__dirname, "..");
 const DATABASE_URL =
   process.env.DATABASE_URL || "postgres://postgres:6285@localhost:5432/kijabe_care_flow";
 
-const sql = postgres(DATABASE_URL, { max: 1, onnotice: () => {} });
+// prepare:false keeps this working through Neon's transaction-mode pooler.
+const sql = postgres(DATABASE_URL, { max: 1, onnotice: () => {}, prepare: false });
 
 const AUTH_STUB = `
 create extension if not exists "pgcrypto";

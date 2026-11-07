@@ -8,6 +8,9 @@ export const sql = postgres(DATABASE_URL, {
   max: 10,
   idle_timeout: 20,
   connect_timeout: 10,
+  // Neon's pooled endpoint runs PgBouncer in transaction mode, which cannot
+  // carry protocol-level prepared statements between connections.
+  prepare: false,
 });
 
 export async function withUser<T>(

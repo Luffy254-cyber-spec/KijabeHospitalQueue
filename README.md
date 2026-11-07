@@ -185,22 +185,21 @@ Small details matter here:
 
 ### Render
 
-`render.yaml` is a complete blueprint: a Node web service plus a PostgreSQL instance, wired together through `DATABASE_URL`.
+`render.yaml` provisions the Node web service. The database lives on [Neon](https://neon.tech) free Postgres, because Render's free PostgreSQL expires 30 days after creation.
 
 **Dashboard:**
 
-1. Render → **New → Blueprint**, connect `Luffy254-cyber-spec/KijabeHospitalQueue`, and apply. The build runs `npm ci && npm run build`; Nitro emits a Node server and `npm start` boots `.output/server/index.mjs` on Render's `PORT`.
-2. Fill the values marked `sync: false`: `GEMINI_API_KEY`, the M-Pesa credentials, `MPESA_CALLBACK_URL`, `VITE_PUBLIC_APP_URL` and `PUBLIC_APP_URL` (use the service URL Render gives you, e.g. `https://kijabe-careflow-queue.onrender.com`).
-3. The pre-deploy command `npm run db:bootstrap` creates the `auth` shim, applies every migration, and seeds `admin@kijabe.local` / `admin1234`. Sign in once and change that password.
-4. Redeploy after the first successful boot so ticket QRs pick up the final public URL.
+1. **Neon:** create a project in an EU region, then copy the **pooled** connection string (the host contains `-pooler`) — Render cannot reach Neon's IPv6-only direct host. It already ends in `?sslmode=require`.
+2. **Provision the schema once**, from the repo on your machine:
+   ```sh
+   DATABASE_URL="postgresql://…-pooler….neon.tech/neondb?sslmode=require" npm run db:bootstrap
+   ```
+   This creates the `auth` shim, applies every migration, and seeds `admin@kijabe.local` / `admin1234`. Change that password after signing in.
+3. Render → **New → Blueprint**, connect `Luffy254-cyber-spec/KijabeHospitalQueue`, and apply. The build runs `npm ci && npm run build`; Nitro emits a Node server and `npm start` boots `.output/server/index.mjs` on Render's `PORT`.
+4. Fill the values marked `sync: false`: `DATABASE_URL` (the Neon pooled URL), `GEMINI_API_KEY`, the M-Pesa credentials, `MPESA_CALLBACK_URL`, `VITE_PUBLIC_APP_URL` and `PUBLIC_APP_URL` (use `https://kijabe-careflow-queue.onrender.com`).
+5. Redeploy after the first successful boot so ticket QRs pick up the final public URL.
 
-If the pre-deploy step is unavailable on your plan, run it once from the Render shell or from your machine against the database's **external** connection string:
-
-```sh
-DATABASE_URL="postgres://…@…/kijabe_care_flow?sslmode=require" npm run db:bootstrap
-```
-
-Free web services sleep after 15 minutes idle, which is not ideal for a kiosk or a waiting-room display; the Starter instance keeps them always-on. Free Render PostgreSQL expires after 30 days.
+Free instance types do not support pre-deploy commands, which is why step 2 runs from your machine; re-run it after pulling new migrations. Free web services also sleep after 15 minutes idle — keep the kiosk awake with a free uptime pinger, or move to the Starter instance for production.
 
 `VITE_PUBLIC_APP_URL` is baked in at build time — set it before the first deploy so ticket QR codes point at the public domain.
 
@@ -210,7 +209,7 @@ Ticket QRs resolve at runtime through `/api/public/app-origin`: a public deploym
 
 | Variable | Production value |
 | --- | --- |
-| `DATABASE_URL` | PostgreSQL URL (Render injects it from the blueprint) |
+| `DATABASE_URL` | Neon **pooled** PostgreSQL URL (`?sslmode=require`) |
 | `AUTH_SECRET` | Long random string, different from development |
 | `GEMINI_API_KEY` | Gemini key for advisors and announcements |
 | `MPESA_ENV` | `production` for paybill 512900 |

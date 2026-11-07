@@ -1,13 +1,11 @@
 # Render blueprint — AIC Kijabe Hospital Queue
 # Dashboard → New → Blueprint → pick this repo. Values marked sync:false are
 # asked once at creation and can be edited later under Environment.
-databases:
-  - name: kijabe-careflow-db
-    databaseName: kijabe_care_flow
-    user: kijabe
-    plan: free
-    region: frankfurt
-
+#
+# The database is Neon Postgres (free tier, pooled connection string) rather
+# than a Render database: Render's free Postgres expires after 30 days. The
+# Free instance type does not support pre-deploy commands, so run
+# `npm run db:bootstrap` once against DATABASE_URL before the first deploy.
 services:
   - type: web
     name: kijabe-careflow-queue
@@ -17,14 +15,11 @@ services:
     buildCommand: npm ci && npm run build
     startCommand: npm start
     healthCheckPath: /api/public/app-origin
-    preDeployCommand: npm run db:bootstrap
     envVars:
       - key: NODE_VERSION
         value: 22.14.0
       - key: DATABASE_URL
-        fromDatabase:
-          name: kijabe-careflow-db
-          property: connectionString
+        sync: false
       - key: AUTH_SECRET
         generateValue: true
       - key: GEMINI_API_KEY
