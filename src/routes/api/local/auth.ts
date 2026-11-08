@@ -1,13 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import {
   bearerUser,
+  beginEmailChange,
   completeLoginPending,
+  completePasswordReset,
   completeSignupConfirm,
+  confirmEmailChange,
+  requestEmailChangeCode,
   requestLoginCode,
+  requestPasswordReset,
   setStaffWorkId,
   signIn,
   signUp,
+  verifyEmailChangeCode,
   verifyLoginCode,
+  verifyPasswordResetCode,
   verifyToken,
 } from "@/lib/local-auth.server";
 import { confirmStaffEmail } from "@/lib/firebase-mail.server";
@@ -58,6 +65,8 @@ export const Route = createFileRoute("/api/local/auth")({
             friendlyName?: string;
             workId?: string;
             userId?: string;
+            ticket?: string;
+            newEmail?: string;
           };
           const origin = mailContinueOrigin(request);
           const webauthnOrigin =
@@ -137,6 +146,34 @@ export const Route = createFileRoute("/api/local/auth")({
           if (body.action === "verify") {
             const user = verifyToken(body.token || null);
             return Response.json({ user }, { headers: cors });
+          }
+          if (body.action === "reset-request") {
+            const r = await requestPasswordReset(body.email || "", origin);
+            return Response.json(r, { headers: cors });
+          }
+          if (body.action === "reset-verify") {
+            const r = await verifyPasswordResetCode(body.email || "", body.code || "");
+            return Response.json(r, { headers: cors });
+          }
+          if (body.action === "reset-complete") {
+            const r = await completePasswordReset(body.email || "", body.ticket || "", body.password || "");
+            return Response.json({ ok: true, ...r }, { headers: cors });
+          }
+          if (body.action === "change-email-request") {
+            const r = await requestEmailChangeCode(body.email || "", origin);
+            return Response.json(r, { headers: cors });
+          }
+          if (body.action === "change-email-verify") {
+            const r = await verifyEmailChangeCode(body.email || "", body.code || "");
+            return Response.json(r, { headers: cors });
+          }
+          if (body.action === "change-email-begin") {
+            const r = await beginEmailChange(body.email || "", body.ticket || "", body.newEmail || "", origin);
+            return Response.json(r, { headers: cors });
+          }
+          if (body.action === "change-email-confirm") {
+            const r = await confirmEmailChange(body.ticket || "");
+            return Response.json(r, { headers: cors });
           }
           const wa = String(body.action).startsWith("webauthn") ? await loadWebauthn() : null;
           if (body.action === "webauthn-status") {

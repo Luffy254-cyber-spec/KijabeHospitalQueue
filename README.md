@@ -156,6 +156,10 @@ npm run dev                 # http://localhost:8080
 | `MPESA_CALLBACK_URL` | Public HTTPS endpoint | Must end in `/api/mpesa/callback` |
 | `VITE_PUBLIC_APP_URL` | Origin encoded into ticket QR codes | LAN IP for kiosks, public domain when hosted |
 | `PUBLIC_APP_URL` | Origin used in staff verification emails | Must be a host Firebase allows |
+| `SMTP_HOST` / `SMTP_PORT` | **Optional** mailbox for staff mail | Leave blank — Firebase Auth sends codes and confirmations |
+| `SMTP_USER` / `SMTP_PASS` | Optional relay credentials | Only needed when `SMTP_HOST` is set |
+| `MAIL_FROM` | Optional sender address | Setting this together with `SMTP_HOST` replaces `noreply@<project>.firebaseapp.com` |
+| `MAIL_FROM_NAME` | Sender display name when SMTP is used | Defaults to `Kijabe Care Flow` |
 
 </details>
 
@@ -234,6 +238,9 @@ Small details matter here:
 | `MPESA_CALLBACK_URL` | `https://<your-domain>/api/mpesa/callback` |
 | `VITE_PUBLIC_APP_URL` | `https://<your-domain>` |
 | `PUBLIC_APP_URL` | `https://<your-domain>` |
+| `SMTP_HOST` / `SMTP_PORT` | Leave blank — Firebase Auth sends staff mail (`465` TLS, `587` STARTTLS only if used) |
+| `SMTP_USER` / `SMTP_PASS` | Only needed when `SMTP_HOST` is set |
+| `MAIL_FROM` | Optional sender address, e.g. `noreply@kijabehospital.or.ke` — replaces the Firebase sender |
 
 <details>
 <summary><strong>Finishing M-Pesa for production</strong> — 5 steps</summary>

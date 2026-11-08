@@ -16,7 +16,10 @@ import { Route as AutomationRouteImport } from './routes/automation'
 import { Route as DisplayRouteImport } from './routes/display'
 import { Route as KioskRouteImport } from './routes/kiosk'
 import { Route as StaffRouteImport } from './routes/staff'
+import { Route as StaffChangeEmailRouteImport } from './routes/staff.change-email'
 import { Route as StaffCodeRouteImport } from './routes/staff.code'
+import { Route as StaffResetRouteImport } from './routes/staff.reset'
+import { Route as StaffResetPasswordRouteImport } from './routes/staff.reset-password'
 import { Route as StaffVerifyRouteImport } from './routes/staff.verify'
 import { Route as TicketIdRouteImport } from './routes/ticket.$id'
 import { Route as TrackPatientIdRouteImport } from './routes/track.$patientId'
@@ -65,9 +68,24 @@ const StaffRoute = StaffRouteImport.update({
   path: '/staff',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StaffChangeEmailRoute = StaffChangeEmailRouteImport.update({
+  id: '/change-email',
+  path: '/change-email',
+  getParentRoute: () => StaffRoute,
+} as any)
 const StaffCodeRoute = StaffCodeRouteImport.update({
   id: '/code',
   path: '/code',
+  getParentRoute: () => StaffRoute,
+} as any)
+const StaffResetRoute = StaffResetRouteImport.update({
+  id: '/reset',
+  path: '/reset',
+  getParentRoute: () => StaffRoute,
+} as any)
+const StaffResetPasswordRoute = StaffResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => StaffRoute,
 } as any)
 const StaffVerifyRoute = StaffVerifyRouteImport.update({
@@ -139,7 +157,10 @@ export interface FileRoutesByFullPath {
   '/display': typeof DisplayRoute
   '/kiosk': typeof KioskRoute
   '/staff': typeof StaffRouteWithChildren
+  '/staff/change-email': typeof StaffChangeEmailRoute
   '/staff/code': typeof StaffCodeRoute
+  '/staff/reset': typeof StaffResetRoute
+  '/staff/reset-password': typeof StaffResetPasswordRoute
   '/staff/verify': typeof StaffVerifyRoute
   '/ticket/$id': typeof TicketIdRoute
   '/track/$patientId': typeof TrackPatientIdRoute
@@ -161,7 +182,10 @@ export interface FileRoutesByTo {
   '/display': typeof DisplayRoute
   '/kiosk': typeof KioskRoute
   '/staff': typeof StaffRouteWithChildren
+  '/staff/change-email': typeof StaffChangeEmailRoute
   '/staff/code': typeof StaffCodeRoute
+  '/staff/reset': typeof StaffResetRoute
+  '/staff/reset-password': typeof StaffResetPasswordRoute
   '/staff/verify': typeof StaffVerifyRoute
   '/ticket/$id': typeof TicketIdRoute
   '/track/$patientId': typeof TrackPatientIdRoute
@@ -184,7 +208,10 @@ export interface FileRoutesById {
   '/display': typeof DisplayRoute
   '/kiosk': typeof KioskRoute
   '/staff': typeof StaffRouteWithChildren
+  '/staff/change-email': typeof StaffChangeEmailRoute
   '/staff/code': typeof StaffCodeRoute
+  '/staff/reset': typeof StaffResetRoute
+  '/staff/reset-password': typeof StaffResetPasswordRoute
   '/staff/verify': typeof StaffVerifyRoute
   '/ticket/$id': typeof TicketIdRoute
   '/track/$patientId': typeof TrackPatientIdRoute
@@ -208,7 +235,10 @@ export interface FileRouteTypes {
     | '/display'
     | '/kiosk'
     | '/staff'
+    | '/staff/change-email'
     | '/staff/code'
+    | '/staff/reset'
+    | '/staff/reset-password'
     | '/staff/verify'
     | '/ticket/$id'
     | '/track/$patientId'
@@ -230,7 +260,10 @@ export interface FileRouteTypes {
     | '/display'
     | '/kiosk'
     | '/staff'
+    | '/staff/change-email'
     | '/staff/code'
+    | '/staff/reset'
+    | '/staff/reset-password'
     | '/staff/verify'
     | '/ticket/$id'
     | '/track/$patientId'
@@ -252,7 +285,10 @@ export interface FileRouteTypes {
     | '/display'
     | '/kiosk'
     | '/staff'
+    | '/staff/change-email'
     | '/staff/code'
+    | '/staff/reset'
+    | '/staff/reset-password'
     | '/staff/verify'
     | '/ticket/$id'
     | '/track/$patientId'
@@ -339,11 +375,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StaffRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/staff/change-email': {
+      id: '/staff/change-email'
+      path: '/change-email'
+      fullPath: '/staff/change-email'
+      preLoaderRoute: typeof StaffChangeEmailRouteImport
+      parentRoute: typeof StaffRoute
+    }
     '/staff/code': {
       id: '/staff/code'
       path: '/code'
       fullPath: '/staff/code'
       preLoaderRoute: typeof StaffCodeRouteImport
+      parentRoute: typeof StaffRoute
+    }
+    '/staff/reset': {
+      id: '/staff/reset'
+      path: '/reset'
+      fullPath: '/staff/reset'
+      preLoaderRoute: typeof StaffResetRouteImport
+      parentRoute: typeof StaffRoute
+    }
+    '/staff/reset-password': {
+      id: '/staff/reset-password'
+      path: '/reset-password'
+      fullPath: '/staff/reset-password'
+      preLoaderRoute: typeof StaffResetPasswordRouteImport
       parentRoute: typeof StaffRoute
     }
     '/staff/verify': {
@@ -434,12 +491,18 @@ declare module '@tanstack/react-router' {
 }
 
 interface StaffRouteChildren {
+  StaffChangeEmailRoute: typeof StaffChangeEmailRoute
   StaffCodeRoute: typeof StaffCodeRoute
+  StaffResetRoute: typeof StaffResetRoute
+  StaffResetPasswordRoute: typeof StaffResetPasswordRoute
   StaffVerifyRoute: typeof StaffVerifyRoute
 }
 
 const StaffRouteChildren: StaffRouteChildren = {
+  StaffChangeEmailRoute: StaffChangeEmailRoute,
   StaffCodeRoute: StaffCodeRoute,
+  StaffResetRoute: StaffResetRoute,
+  StaffResetPasswordRoute: StaffResetPasswordRoute,
   StaffVerifyRoute: StaffVerifyRoute,
 }
 

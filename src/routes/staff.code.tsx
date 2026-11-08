@@ -21,6 +21,12 @@ export const Route = createFileRoute("/staff/code")({
   }),
   validateSearch: (search: Record<string, unknown>) => ({
     email: typeof search.email === "string" ? search.email.trim().toLowerCase() : "",
+    purpose:
+      search.purpose === "reset"
+        ? ("reset" as const)
+        : search.purpose === "change-email"
+          ? ("change-email" as const)
+          : ("login" as const),
   }),
   component: StaffCodePage,
 });
@@ -43,7 +49,7 @@ function readPending(email: string): Pending | null {
 }
 
 function StaffCodePage() {
-  const { email: emailQ } = Route.useSearch();
+  const { email: emailQ, purpose } = Route.useSearch();
   const navigate = useNavigate();
   const [email] = useState(() => {
     if (emailQ) return emailQ;
@@ -77,13 +83,15 @@ function StaffCodePage() {
 
   useEffect(() => {
     if (!emailQ && !pending?.email) {
-      navigate({ to: "/staff" });
+      if (purpose === "reset") navigate({ to: "/staff/reset" });
+      else if (purpose === "change-email") navigate({ to: "/staff/change-email", search: { email: "", ticket: "" } });
+      else navigate({ to: "/staff" });
       return;
     }
     if (!emailQ && pending?.email) {
-      navigate({ to: "/staff/code", search: { email: pending.email }, replace: true });
+      navigate({ to: "/staff/code", search: { email: pending.email, purpose }, replace: true });
     }
-  }, [emailQ, pending?.email, navigate]);
+  }, [emailQ, pending?.email, navigate, purpose]);
 
   useEffect(() => {
     const i = window.setInterval(() => setNow(Date.now()), 1000);
@@ -107,19 +115,54 @@ function StaffCodePage() {
   const confirm = useCallback(async (value: string) => {
     if (busy || ok || value.length < 6) return;
     if (!email) {
-      toast.error("Missing email — sign in again");
-      navigate({ to: "/staff" });
+      toast.error("Missing email — start again");
+      if (purpose === "reset") navigate({ to: "/staff/reset" });
+      else if (purpose === "change-email") navigate({ to: "/staff/change-email", search: { email: "", ticket: "" } });
+      else navigate({ to: "/staff" });
       return;
     }
+    const rejected = (message: string) => {
+      setShake(true);
+      window.setTimeout(() => setShake(false), 520);
+      toast.error(message);
+      setDigits(["", "", "", "", "", ""]);
+      inputs.current[0]?.focus();
+    };
     setBusy(true);
     try {
+      if (purpose === "reset") {
+        const res = await supabase.auth.verifyResetCode({ email, code: value });
+        if (res.error) {
+          rejected(res.error.message);
+          return;
+        }
+        try { sessionStorage.removeItem(PENDING_KEY); } catch { /* */ }
+        setOk(true);
+        toast.success("Reset code confirmed — choose a new password");
+        window.setTimeout(
+          () => navigate({ to: "/staff/reset-password", search: { email: res.data.email, ticket: res.data.ticket } }),
+          600,
+        );
+        return;
+      }
+      if (purpose === "change-email") {
+        const res = await supabase.auth.verifyEmailChangeCode({ email, code: value });
+        if (res.error) {
+          rejected(res.error.message);
+          return;
+        }
+        try { sessionStorage.removeItem(PENDING_KEY); } catch { /* */ }
+        setOk(true);
+        toast.success("Code confirmed — enter the new email address");
+        window.setTimeout(
+          () => navigate({ to: "/staff/change-email", search: { email: res.data.email, ticket: res.data.ticket } }),
+          600,
+        );
+        return;
+      }
       const res = await supabase.auth.verifyLoginCode({ email, code: value });
       if (res.error) {
-        setShake(true);
-        window.setTimeout(() => setShake(false), 520);
-        toast.error(res.error.message);
-        setDigits(["", "", "", "", "", ""]);
-        inputs.current[0]?.focus();
+        rejected(res.error.message);
         return;
       }
       try { sessionStorage.removeItem(PENDING_KEY); } catch { /* */ }
@@ -144,7 +187,7 @@ function StaffCodePage() {
     } finally {
       setBusy(false);
     }
-  }, [busy, ok, email, navigate]);
+  }, [busy, ok, email, navigate, purpose]);
 
   useEffect(() => {
     // Only auto-submit after the staff member typed/pasted the code themselves
@@ -206,12 +249,29 @@ function StaffCodePage() {
         </div>
         <p className="text-xs font-semibold uppercase tracking-[0.2em] opacity-80">AIC Kijabe Hospital</p>
         <h1 className="mt-2 text-3xl font-bold">
-          {ok ? "Tide opens — welcome" : "Code on the tide"}
+          {ok
+            ? purpose === "login"
+              ? "Tide opens — welcome"
+              : "Code confirmed"
+            : purpose === "reset"
+              ? "Reset code on the tide"
+              : purpose === "change-email"
+                ? "Code to change your email"
+                : "Code on the tide"}
         </h1>
         <p className="mt-2 text-sm opacity-85">
-          {ok
-            ? "Signing you into your desk…"
-            : <>A 6-digit code was cast to <b className="break-all">{email}</b>. Enter it below.</>}
+          {ok ? (
+            purpose === "login"
+              ? "Signing you into your desk…"
+              : purpose === "reset"
+                ? "Opening the new password page…"
+                : "Opening the new email page…"
+          ) : (
+            <>
+              A 6-digit {purpose === "reset" ? "reset " : purpose === "change-email" ? "email change " : ""}code was cast to{" "}
+              <b className="break-all">{email}</b>. Enter it below.
+            </>
+          )}
         </p>
 
         <div className="mt-3 flex justify-center">
@@ -255,24 +315,40 @@ function StaffCodePage() {
             </div>
 
             <p className="mt-4 rounded-lg bg-amber-500/20 px-3 py-2 text-xs leading-relaxed">
-              <b>Email missing?</b> Open <b>Spam</b>, <b>Junk</b>, and <b>Promotions</b> — Firebase verification mail often lands there.
-              Greeting looks like “Kijabe login code …”. Still quiet after ~60s? Go back and sign in again for a fresh code.
+              <b>Email missing?</b> Open <b>Spam</b>, <b>Junk</b>, and <b>Promotions</b> — hospital mail often lands there.
+              The subject starts “Kijabe Care Flow — ”. Still quiet after ~60s? Go back and ask for a fresh code.
             </p>
 
             <Button className="mt-5 w-full" disabled={busy || !filled}>
-              {busy ? "Confirming…" : "Confirm & sign in"}
+              {busy ? "Confirming…" : purpose === "login" ? "Confirm & sign in" : "Confirm code"}
             </Button>
 
-            <Link to="/staff" className="staff-ocean-link mt-4 block w-full text-center text-sm underline">
-              ← Back to password · new code
-            </Link>
+            {purpose === "reset" ? (
+              <Link to="/staff/reset" className="staff-ocean-link mt-4 block w-full text-center text-sm underline">
+                ← Send a different reset code
+              </Link>
+            ) : purpose === "change-email" ? (
+              <Link
+                to="/staff/change-email"
+                search={{ email: "", ticket: "" }}
+                className="staff-ocean-link mt-4 block w-full text-center text-sm underline"
+              >
+                ← Send a different code
+              </Link>
+            ) : (
+              <Link to="/staff" className="staff-ocean-link mt-4 block w-full text-center text-sm underline">
+                ← Back to password · new code
+              </Link>
+            )}
           </>
         )}
 
         {ok && (
           <div className="staff-code-success mt-8 text-center" aria-live="polite">
             <div className="staff-code-ripple" />
-            <p className="font-display text-lg font-bold">Desk unlocked</p>
+            <p className="font-display text-lg font-bold">
+              {purpose === "login" ? "Desk unlocked" : "Verified"}
+            </p>
           </div>
         )}
       </form>

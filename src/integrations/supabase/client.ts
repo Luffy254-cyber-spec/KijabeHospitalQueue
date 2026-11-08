@@ -153,6 +153,7 @@ export const supabase = {
           email: json.email as string,
           pending: json.pending as string | undefined,
           code: json.code as string | undefined,
+          mailFailed: !!json.mailFailed,
         };
       }
       return { data: { session: null, user: null }, error: { message: "Sign in failed" } };
@@ -166,6 +167,59 @@ export const supabase = {
       setToken(json.session.access_token);
       notifyAuth("SIGNED_IN", json.session);
       return { data: { session: json.session, user: json.session.user }, error: null };
+    },
+    /** Step 1 of a password reset: mail a 6-digit code (Firebase). */
+    async requestPasswordReset(email: string) {
+      const { res, json } = await authFetch("/api/local/auth", {
+        method: "POST",
+        body: JSON.stringify({ action: "reset-request", email }),
+      });
+      if (!res.ok) return { data: null, error: { message: json.error || "Could not send the reset code" } };
+      return { data: json as { email: string; code?: string; mailFailed?: boolean }, error: null };
+    },
+    /** Step 2 of a password reset: code → single-use ticket. */
+    async verifyResetCode({ email, code }: { email: string; code: string }) {
+      const { res, json } = await authFetch("/api/local/auth", {
+        method: "POST",
+        body: JSON.stringify({ action: "reset-verify", email, code }),
+      });
+      if (!res.ok) return { data: null, error: { message: json.error || "Invalid code" } };
+      return { data: json as { email: string; ticket: string }, error: null };
+    },
+    async completePasswordReset({ email, ticket, password }: { email: string; ticket: string; password: string }) {
+      const { res, json } = await authFetch("/api/local/auth", {
+        method: "POST",
+        body: JSON.stringify({ action: "reset-complete", email, ticket, password }),
+      });
+      if (!res.ok) return { data: null, error: { message: json.error || "Could not change the password" } };
+      return { data: json as { ok: boolean; email: string }, error: null };
+    },
+    /** Step 1 of an email change: mail a 6-digit code (Firebase). */
+    async requestEmailChangeCode(email: string) {
+      const { res, json } = await authFetch("/api/local/auth", {
+        method: "POST",
+        body: JSON.stringify({ action: "change-email-request", email }),
+      });
+      if (!res.ok) return { data: null, error: { message: json.error || "Could not send the code" } };
+      return { data: json as { email: string; code?: string; mailFailed?: boolean }, error: null };
+    },
+    /** Step 2 of an email change: code → single-use ticket. */
+    async verifyEmailChangeCode({ email, code }: { email: string; code: string }) {
+      const { res, json } = await authFetch("/api/local/auth", {
+        method: "POST",
+        body: JSON.stringify({ action: "change-email-verify", email, code }),
+      });
+      if (!res.ok) return { data: null, error: { message: json.error || "Invalid code" } };
+      return { data: json as { email: string; ticket: string }, error: null };
+    },
+    /** Step 3: new address → confirmation mail to that address. */
+    async beginEmailChange({ email, ticket, newEmail }: { email: string; ticket: string; newEmail: string }) {
+      const { res, json } = await authFetch("/api/local/auth", {
+        method: "POST",
+        body: JSON.stringify({ action: "change-email-begin", email, ticket, newEmail }),
+      });
+      if (!res.ok) return { data: null, error: { message: json.error || "Could not send the verification mail" } };
+      return { data: json as { email: string; mailFailed?: boolean }, error: null };
     },
     async acceptSession(session: Session) {
       setToken(session.access_token);

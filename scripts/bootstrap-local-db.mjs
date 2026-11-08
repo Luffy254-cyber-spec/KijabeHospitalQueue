@@ -112,6 +112,7 @@ async function main() {
     "20261107043000_return_common_priority_reasons.sql",
     "20261107050000_staff_work_sessions.sql",
     "20261107060000_staff_webauthn.sql",
+    "20261108090000_account_recovery.sql",
   ];
   for (const f of extra) {
     const filePath = path.join(root, "supabase", "migrations", f);

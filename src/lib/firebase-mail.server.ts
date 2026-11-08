@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomInt } from "node:crypto";
 import { sql } from "@/lib/db.server";
+import { sendBrandMail, smtpConfigured } from "@/lib/mail.server";
 
 const API_KEY = "AIzaSyAMRu6hwOq0Djh3qj6yI43NunsPXRYKnJw";
 const AUTH = "https://identitytoolkit.googleapis.com/v1";
@@ -102,20 +103,34 @@ function firebaseContinueUrlOrOmit(continueUrl: string): string | undefined {
   }
 }
 
-/** Signup confirmation email via Firebase (link → /staff/verify). */
+/** Signup confirmation email (SMTP when configured, else Firebase) → /staff/verify. */
 export async function sendStaffConfirmEmail(email: string, continueUrl: string) {
   const address = email.trim().toLowerCase();
-  if (address.endsWith(".local")) return; // local demo accounts skip Firebase mail
-  const fb = await ensureFirebaseUser(address);
+  if (address.endsWith(".local")) return; // local demo accounts skip email
   const pending = randomBytes(18).toString("base64url");
   await sql`
     update auth.users set signup_pending_token = ${pending} where lower(email) = ${address}
   `;
   const localContinue = `${continueUrl}${continueUrl.includes("?") ? "&" : "?"}signup=${encodeURIComponent(pending)}&email=${encodeURIComponent(address)}`;
+  if (smtpConfigured()) {
+    await sendBrandMail({
+      to: address,
+      subject: "Confirm your Kijabe Care Flow staff email",
+      heading: "Confirm your staff email",
+      lines: [
+        "Welcome to the Kijabe Care Flow staff console.",
+        "Tap the button below to confirm this address. A superadmin still has to approve new staff before the first sign-in.",
+      ],
+      cta: { href: localContinue, label: "Confirm email" },
+      footnote: "If you did not register for a staff account, you can ignore this message.",
+    });
+    return;
+  }
+  const fb = await ensureFirebaseUser(address);
   const url = firebaseContinueUrlOrOmit(localContinue);
   await post("accounts:update", {
     idToken: fb.idToken,
-    displayName: `Kijabe staff`,
+    displayName: `Confirm your staff email`,
     returnSecureToken: true,
   });
   const oob: Record<string, unknown> = {
@@ -147,8 +162,43 @@ export async function confirmStaffEmail(email: string, signupToken?: string) {
   await purgeFirebase(address);
 }
 
-/** Every sign-in: email a 6-digit code (shown in Firebase greeting via displayName). */
-export async function sendLoginVerificationCode(email: string, continueUrl: string): Promise<{ code?: string; pending: string }> {
+/** Firebase VERIFY_EMAIL mail whose greeting line carries the 6-digit code. */
+async function sendCodeGreeting(address: string, displayName: string, continueUrl: string) {
+  let fb = await ensureFirebaseUser(address);
+  const url = firebaseContinueUrlOrOmit(continueUrl);
+  const sendOob = async (idToken: string) => {
+    const oob: Record<string, unknown> = { requestType: "VERIFY_EMAIL", idToken };
+    if (url) oob["continueUrl"] = url;
+    await post("accounts:sendOobCode", oob);
+  };
+  await post("accounts:update", {
+    idToken: fb.idToken,
+    displayName,
+    returnSecureToken: true,
+  });
+  try {
+    await sendOob(fb.idToken);
+  } catch {
+    // Already-verified Firebase users cannot get VERIFY_EMAIL — recreate throwaway
+    try {
+      await post("accounts:delete", { idToken: fb.idToken });
+    } catch { /* */ }
+    await sql`
+      update auth.users set firebase_local_id = null, firebase_purge_secret = null
+      where lower(email) = ${address}
+    `;
+    fb = await ensureFirebaseUser(address);
+    await post("accounts:update", {
+      idToken: fb.idToken,
+      displayName,
+      returnSecureToken: true,
+    });
+    await sendOob(fb.idToken);
+  }
+}
+
+/** Every sign-in: email a 6-digit code (SMTP when configured, else Firebase greeting). */
+export async function sendLoginVerificationCode(email: string, continueUrl: string): Promise<{ code?: string; pending: string; mailFailed?: boolean }> {
   const address = email.trim().toLowerCase();
   const code = String(randomInt(100000, 999999));
   const pending = randomBytes(18).toString("base64url");
@@ -164,46 +214,122 @@ export async function sendLoginVerificationCode(email: string, continueUrl: stri
     return { code, pending };
   }
 
-  try {
-    let fb = await ensureFirebaseUser(address);
-    const localContinue = `${continueUrl}${continueUrl.includes("?") ? "&" : "?"}mode=login&pending=${encodeURIComponent(pending)}&email=${encodeURIComponent(address)}`;
-    const url = firebaseContinueUrlOrOmit(localContinue);
-    const sendOob = async (idToken: string) => {
-      const oob: Record<string, unknown> = { requestType: "VERIFY_EMAIL", idToken };
-      if (url) oob["continueUrl"] = url;
-      await post("accounts:sendOobCode", oob);
-    };
-    await post("accounts:update", {
-      idToken: fb.idToken,
-      displayName: `Kijabe login code ${code}`,
-      returnSecureToken: true,
-    });
+  if (smtpConfigured()) {
     try {
-      await sendOob(fb.idToken);
-    } catch {
-      // Already-verified Firebase users cannot get VERIFY_EMAIL — recreate throwaway
-      try {
-        await post("accounts:delete", { idToken: fb.idToken });
-      } catch { /* */ }
-      await sql`
-        update auth.users set firebase_local_id = null, firebase_purge_secret = null
-        where lower(email) = ${address}
-      `;
-      fb = await ensureFirebaseUser(address);
-      await post("accounts:update", {
-        idToken: fb.idToken,
-        displayName: `Kijabe login code ${code}`,
-        returnSecureToken: true,
+      await sendBrandMail({
+        to: address,
+        subject: `Kijabe Care Flow sign-in code ${code}`,
+        heading: "Your sign-in code",
+        lines: [
+          "Enter this code on the staff sign-in page to finish signing in.",
+          "The code expires in 10 minutes and can only be used once.",
+        ],
+        code,
+        footnote: "If you did not try to sign in, someone else has your password — change it and tell admin@kijabe.local.",
       });
-      await sendOob(fb.idToken);
+      return { pending };
+    } catch (e) {
+      console.warn("SMTP login code failed", e);
+      return { pending, mailFailed: true };
     }
+  }
+
+  try {
+    const localContinue = `${continueUrl}${continueUrl.includes("?") ? "&" : "?"}mode=login&pending=${encodeURIComponent(pending)}&email=${encodeURIComponent(address)}`;
+    await sendCodeGreeting(address, `Sign-in code ${code}`, localContinue);
   } catch (e) {
-    // Still allow code entry when Firebase mail fails (staff must request a fresh sign-in if they never got mail)
+    // Keep the hash so a retry can still succeed, but tell the UI the mail failed
     console.warn("Firebase login mail failed", e);
-    return { pending };
+    return { pending, mailFailed: true };
   }
   // Do not return the plaintext code to the client — staff enter it from email only.
   return { pending };
+}
+
+async function sendRecoveryCode(
+  address: string,
+  kind: "reset" | "change-email",
+  code: string,
+  continueUrl: string,
+): Promise<{ code?: string; mailFailed?: boolean }> {
+  if (address.endsWith(".local")) return { code };
+  if (smtpConfigured()) {
+    const reset = kind === "reset";
+    try {
+      await sendBrandMail({
+        to: address,
+        subject: reset ? `Kijabe Care Flow password reset code ${code}` : `Kijabe Care Flow email change code ${code}`,
+        heading: reset ? "Reset your password" : "Change your email",
+        lines: [
+          reset
+            ? "Enter this code on the password reset page to choose a new password."
+            : "Enter this code on the change email page to confirm it is you.",
+          "The code expires in 10 minutes and can only be used once.",
+        ],
+        code,
+        footnote: "If you did not ask for this, ignore the email — nothing on your account changes.",
+      });
+      return {};
+    } catch (e) {
+      console.warn("SMTP recovery code failed", e);
+      return { mailFailed: true };
+    }
+  }
+  try {
+    await sendCodeGreeting(
+      address,
+      kind === "reset" ? `Reset code ${code}` : `Email change code ${code}`,
+      continueUrl,
+    );
+    return {};
+  } catch (e) {
+    console.warn(`${kind} code mail failed`, e);
+    return { mailFailed: true };
+  }
+}
+
+export async function sendPasswordResetCode(email: string, code: string, continueUrl: string) {
+  return sendRecoveryCode(email.trim().toLowerCase(), "reset", code, continueUrl);
+}
+
+export async function sendEmailChangeCode(email: string, code: string, continueUrl: string) {
+  return sendRecoveryCode(email.trim().toLowerCase(), "change-email", code, continueUrl);
+}
+
+/**
+ * Verification mail to the requested new address. The Firebase account it needs
+ * is kept (id + secret returned) so it can become the account's mail conduit.
+ */
+export async function sendEmailChangeVerification(
+  newEmail: string,
+  continueUrl: string,
+): Promise<{ firebaseLocalId?: string; firebaseSecret?: string; mailFailed?: boolean }> {
+  const address = newEmail.trim().toLowerCase();
+  try {
+    const fb = await ensureFirebaseUser(address);
+    const url = firebaseContinueUrlOrOmit(continueUrl);
+    await post("accounts:update", {
+      idToken: fb.idToken,
+      displayName: "Confirm your new Kijabe Care Flow email",
+      returnSecureToken: true,
+    });
+    const oob: Record<string, unknown> = { requestType: "VERIFY_EMAIL", idToken: fb.idToken };
+    if (url) oob["continueUrl"] = url;
+    await post("accounts:sendOobCode", oob);
+    return { firebaseLocalId: fb.localId, firebaseSecret: fb.password };
+  } catch (e) {
+    const msg = String((e as Error)?.message || e);
+    if (/EMAIL_EXISTS/i.test(msg)) {
+      throw new Error("That address is already held by the mail service — use another email or contact admin@kijabe.local");
+    }
+    console.warn("Email change verification failed", e);
+    return { mailFailed: true };
+  }
+}
+
+/** Drop the Firebase conduit for an address (used when an email change finishes). */
+export async function purgeFirebaseAccount(email: string) {
+  await purgeFirebase(email);
 }
 
 export function codeHash(code: string) {

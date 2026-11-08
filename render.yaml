@@ -40,3 +40,6 @@ services:
         sync: false
       - key: PUBLIC_APP_URL
         sync: false
+      # Staff mail (login codes, signup confirmations) goes out through Firebase
+      # Auth, so no SMTP mailbox is required. Optional SMTP_HOST/PORT/USER/PASS,
+      # MAIL_FROM and MAIL_FROM_NAME can be added in the dashboard later.

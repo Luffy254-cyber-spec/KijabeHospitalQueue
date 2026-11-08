@@ -208,6 +208,7 @@ function Login() {
             description:
               "Verification email could not be sent. Your email was confirmed on this hospital network — ask admin@kijabe.local to approve you, then sign in. If a mail arrives later, also check Spam / Junk / Promotions.",
             duration: 14000,
+            className: "staff-notice-toast",
           });
         } else if (res.awaitingApproval) {
           if (wantBio) {
@@ -219,6 +220,7 @@ function Login() {
             description:
               "Open the confirmation link in your inbox. Missing? Check Spam, Junk, and Promotions first — verification mail often lands there. After confirming, wait for admin@kijabe.local to approve you before sign-in works.",
             duration: 14000,
+            className: "staff-notice-toast",
           });
         } else {
           if (wantBio) {
@@ -236,7 +238,7 @@ function Login() {
       }
       const res = await supabase.auth.signInWithPassword({ email, password }) as Awaited<
         ReturnType<typeof supabase.auth.signInWithPassword>
-      > & { needsCode?: boolean; code?: string; email?: string };
+      > & { needsCode?: boolean; code?: string; email?: string; mailFailed?: boolean };
       if (res.error) toast.error(res.error.message);
       else if (res.data.session) {
         toast.success(`Welcome back, ${welcomeName(email)}!`);
@@ -249,6 +251,20 @@ function Login() {
         } catch { /* ignore */ }
       } else if (res.needsCode) {
         const address = (res.email || email).trim().toLowerCase();
+        if (res.mailFailed) {
+          toast.error("Sign-in code could not be sent", {
+            description:
+              "The mail service did not accept the message. Try again in a minute; if it keeps failing, ask admin@kijabe.local to check the account-mail settings.",
+            duration: 12000,
+            classNames: {
+              toast: "!border-rose-300 !bg-rose-700 !text-white !shadow-lg",
+              title: "!text-white !font-semibold",
+              description: "!text-rose-50",
+              icon: "!text-white",
+            },
+          });
+          return;
+        }
         try {
           sessionStorage.setItem(
             LOGIN_PENDING_KEY,
@@ -261,7 +277,7 @@ function Login() {
           /* ignore */
         }
         toast.success("Verification code cast into your inbox", {
-          description: "Look for “Kijabe login code …” in your email. Missing? Check Spam, Junk, and Promotions.",
+          description: "Look for “Kijabe Care Flow — Sign-in code …” in your email. Missing? Check Spam, Junk, and Promotions.",
           duration: 9000,
           classNames: {
             toast: "!border-emerald-300 !bg-emerald-600 !text-white !shadow-lg",
@@ -504,6 +520,12 @@ function Login() {
         >
           {mode === "in" ? "New staff member? Create an account" : "Have an account? Sign in"}
         </button>
+        {mode === "in" && (
+          <div className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs">
+            <Link to="/staff/reset" className="underline">Forgot password?</Link>
+            <Link to="/staff/change-email" className="underline">Change email</Link>
+          </div>
+        )}
         <p className="mt-3 text-center text-xs opacity-80">Superadmin (no verification): admin@kijabe.local / admin1234</p>
         <Link to="/admin" className="mt-1 block text-center text-sm underline">Superadmin command →</Link>
         <Link to="/" className="mt-2 block text-center text-sm underline">← Home</Link>

@@ -1,6 +1,15 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { sql } from "@/lib/db.server";
-import { codeHash, confirmStaffEmail, sendLoginVerificationCode, sendStaffConfirmEmail } from "@/lib/firebase-mail.server";
+import {
+  codeHash,
+  confirmStaffEmail,
+  purgeFirebaseAccount,
+  sendEmailChangeCode,
+  sendEmailChangeVerification,
+  sendLoginVerificationCode,
+  sendPasswordResetCode,
+  sendStaffConfirmEmail,
+} from "@/lib/firebase-mail.server";
 
 const SECRET = () => process.env["AUTH_SECRET"] || "kijabe-local-dev-secret-change-me";
 
@@ -200,6 +209,7 @@ export async function requestLoginCode(email: string, password: string, origin: 
     email: row.email,
     pending: sent.pending,
     code: sent.code,
+    mailFailed: sent.mailFailed,
   };
 }
 
@@ -356,4 +366,258 @@ export async function signUp(
     if (/unique|duplicate/i.test(msg)) throw new Error("Email already registered");
     throw e;
   }
+}
+
+/* ---- account recovery: password reset and email change ---------------------
+ * Both start with a 6-digit code mailed by Firebase, end with a single-use
+ * ticket the browser carries to the next page. Codes and tickets are stored
+ * as hashes with a short expiry.
+ */
+
+function sixDigits() {
+  return String(randomInt(100000, 999999));
+}
+
+function normalizeEmail(raw: string) {
+  return (raw || "").trim().toLowerCase();
+}
+
+async function accountRow(email: string) {
+  const rows = await sql`
+    select id, email from auth.users where lower(email) = ${normalizeEmail(email)} limit 1
+  `;
+  return rows[0] as { id: string; email: string } | undefined;
+}
+
+export async function requestPasswordReset(email: string, origin: string) {
+  const row = await accountRow(email);
+  if (!row) throw new Error("No staff account uses that email");
+  const code = sixDigits();
+  await sql`
+    update auth.users
+    set reset_code_hash = ${codeHash(code)},
+        reset_code_expires = now() + interval '10 minutes',
+        reset_ticket_hash = null,
+        reset_ticket_expires = null
+    where id = ${row.id}::uuid
+  `;
+  const sent = await sendPasswordResetCode(String(row.email), code, `${origin}/staff/code?purpose=reset`);
+  return { email: String(row.email), code: sent.code, mailFailed: !!sent.mailFailed };
+}
+
+export async function verifyPasswordResetCode(email: string, code: string) {
+  const address = normalizeEmail(email);
+  const cleaned = (code || "").replace(/\D/g, "").trim();
+  const rows = await sql`
+    select id, email, reset_code_hash, reset_code_expires
+    from auth.users where lower(email) = ${address} limit 1
+  `;
+  const row = rows[0] as {
+    id: string; email: string;
+    reset_code_hash: string | null; reset_code_expires: string | null;
+  } | undefined;
+  if (!row?.reset_code_hash || !row.reset_code_expires) {
+    throw new Error("No reset code pending — request a new one");
+  }
+  if (new Date(row.reset_code_expires).getTime() < Date.now()) {
+    throw new Error("Reset code expired — request a new one (check Spam / Junk)");
+  }
+  if (row.reset_code_hash !== codeHash(cleaned)) {
+    throw new Error("Incorrect code — check the email (including Spam) or request a new one");
+  }
+  const ticket = randomBytes(24).toString("base64url");
+  await sql`
+    update auth.users
+    set reset_code_hash = null,
+        reset_code_expires = null,
+        reset_ticket_hash = ${codeHash(ticket)},
+        reset_ticket_expires = now() + interval '20 minutes'
+    where id = ${row.id}::uuid
+  `;
+  return { email: String(row.email), ticket };
+}
+
+export async function completePasswordReset(email: string, ticket: string, password: string) {
+  if (!password || password.length < 8) throw new Error("Password must be at least 8 characters");
+  const address = normalizeEmail(email);
+  const rows = await sql`
+    select id, reset_ticket_hash, reset_ticket_expires
+    from auth.users where lower(email) = ${address} limit 1
+  `;
+  const row = rows[0] as {
+    id: string; reset_ticket_hash: string | null; reset_ticket_expires: string | null;
+  } | undefined;
+  if (!row?.reset_ticket_hash || !row.reset_ticket_expires) {
+    throw new Error("Start the reset again — the code step has expired");
+  }
+  if (new Date(row.reset_ticket_expires).getTime() < Date.now()) {
+    throw new Error("Reset session expired — request a new code");
+  }
+  if (row.reset_ticket_hash !== codeHash((ticket || "").trim())) {
+    throw new Error("Reset session is not valid — request a new code");
+  }
+  const hash = await sql`select crypt(${password}, gen_salt('bf')) as h`;
+  await sql`
+    update auth.users
+    set encrypted_password = ${hash[0]!.h},
+        reset_code_hash = null,
+        reset_code_expires = null,
+        reset_ticket_hash = null,
+        reset_ticket_expires = null,
+        login_code_hash = null,
+        login_code_expires = null,
+        login_pending_token = null,
+        updated_at = now()
+    where id = ${row.id}::uuid
+  `;
+  return { email: address };
+}
+
+export async function requestEmailChangeCode(email: string, origin: string) {
+  const row = await accountRow(email);
+  if (!row) throw new Error("No staff account uses that email");
+  const code = sixDigits();
+  await sql`
+    update auth.users
+    set email_change_code_hash = ${codeHash(code)},
+        email_change_code_expires = now() + interval '10 minutes',
+        email_change_ticket_hash = null,
+        email_change_ticket_expires = null
+    where id = ${row.id}::uuid
+  `;
+  const sent = await sendEmailChangeCode(String(row.email), code, `${origin}/staff/code?purpose=change-email`);
+  return { email: String(row.email), code: sent.code, mailFailed: !!sent.mailFailed };
+}
+
+export async function verifyEmailChangeCode(email: string, code: string) {
+  const address = normalizeEmail(email);
+  const cleaned = (code || "").replace(/\D/g, "").trim();
+  const rows = await sql`
+    select id, email, email_change_code_hash, email_change_code_expires
+    from auth.users where lower(email) = ${address} limit 1
+  `;
+  const row = rows[0] as {
+    id: string; email: string;
+    email_change_code_hash: string | null; email_change_code_expires: string | null;
+  } | undefined;
+  if (!row?.email_change_code_hash || !row.email_change_code_expires) {
+    throw new Error("No email change code pending — request a new one");
+  }
+  if (new Date(row.email_change_code_expires).getTime() < Date.now()) {
+    throw new Error("Code expired — request a new one (check Spam / Junk)");
+  }
+  if (row.email_change_code_hash !== codeHash(cleaned)) {
+    throw new Error("Incorrect code — check the email (including Spam) or request a new one");
+  }
+  const ticket = randomBytes(24).toString("base64url");
+  await sql`
+    update auth.users
+    set email_change_code_hash = null,
+        email_change_code_expires = null,
+        email_change_ticket_hash = ${codeHash(ticket)},
+        email_change_ticket_expires = now() + interval '20 minutes'
+    where id = ${row.id}::uuid
+  `;
+  return { email: String(row.email), ticket };
+}
+
+/** Step after the code: ask for the new address, then mail a confirmation link to it. */
+export async function beginEmailChange(email: string, ticket: string, newEmail: string, origin: string) {
+  const address = normalizeEmail(email);
+  const next = normalizeEmail(newEmail);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(next)) throw new Error("Enter a valid email address");
+  if (next.endsWith(".local")) throw new Error("Use an email address you can open");
+  const rows = await sql`
+    select id, email_change_ticket_hash, email_change_ticket_expires
+    from auth.users where lower(email) = ${address} limit 1
+  `;
+  const row = rows[0] as {
+    id: string; email_change_ticket_hash: string | null; email_change_ticket_expires: string | null;
+  } | undefined;
+  if (!row?.email_change_ticket_hash || !row.email_change_ticket_expires) {
+    throw new Error("Start the change again — the code step has expired");
+  }
+  if (new Date(row.email_change_ticket_expires).getTime() < Date.now()) {
+    throw new Error("Change session expired — request a new code");
+  }
+  if (row.email_change_ticket_hash !== codeHash((ticket || "").trim())) {
+    throw new Error("Change session is not valid — request a new code");
+  }
+  if (next === address) throw new Error("That is already your email");
+  const clash = await sql`select id from auth.users where lower(email) = ${next} limit 1`;
+  if (clash.length) throw new Error("Another staff account already uses that email");
+
+  const token = randomBytes(24).toString("base64url");
+  const sent = await sendEmailChangeVerification(
+    next,
+    `${origin}/staff/verify?changeEmail=${encodeURIComponent(token)}`,
+  );
+  await sql`
+    update auth.users
+    set email_change_code_hash = null,
+        email_change_code_expires = null,
+        email_change_ticket_hash = null,
+        email_change_ticket_expires = null,
+        email_change_new_email = ${next},
+        email_change_confirm_token = ${codeHash(token)},
+        email_change_confirm_expires = now() + interval '2 days',
+        email_change_fb_local_id = ${sent.firebaseLocalId ?? null},
+        email_change_fb_secret = ${sent.firebaseSecret ?? null}
+    where id = ${row.id}::uuid
+  `;
+  return { email: next, mailFailed: !!sent.mailFailed };
+}
+
+/** The link mailed to the new address: only now does the address change. */
+export async function confirmEmailChange(token: string) {
+  const raw = (token || "").trim();
+  if (!raw) throw new Error("Verification link is invalid");
+  const rows = await sql`
+    select id, email, email_change_new_email, email_change_confirm_expires,
+           email_change_fb_local_id, email_change_fb_secret
+    from auth.users where email_change_confirm_token = ${codeHash(raw)} limit 1
+  `;
+  const row = rows[0] as {
+    id: string; email: string; email_change_new_email: string | null;
+    email_change_confirm_expires: string | null;
+    email_change_fb_local_id: string | null; email_change_fb_secret: string | null;
+  } | undefined;
+  if (!row?.email_change_new_email) {
+    throw new Error("This verification link was already used — start the change again");
+  }
+  if (!row.email_change_confirm_expires || new Date(row.email_change_confirm_expires).getTime() < Date.now()) {
+    throw new Error("This verification link expired — start the change again");
+  }
+  const next = String(row.email_change_new_email).toLowerCase();
+  const clash = await sql`
+    select id from auth.users where lower(email) = ${next} and id <> ${row.id}::uuid limit 1
+  `;
+  if (clash.length) throw new Error("Another staff account already uses that email");
+
+  await purgeFirebaseAccount(String(row.email));
+  try {
+    await sql`
+      update auth.users
+      set email = ${next},
+          email_confirmed_at = coalesce(email_confirmed_at, now()),
+          firebase_local_id = ${row.email_change_fb_local_id},
+          firebase_purge_secret = ${row.email_change_fb_secret},
+          email_change_code_hash = null,
+          email_change_code_expires = null,
+          email_change_ticket_hash = null,
+          email_change_ticket_expires = null,
+          email_change_new_email = null,
+          email_change_confirm_token = null,
+          email_change_confirm_expires = null,
+          email_change_fb_local_id = null,
+          email_change_fb_secret = null,
+          updated_at = now()
+      where id = ${row.id}::uuid
+    `;
+  } catch (e) {
+    const msg = String((e as Error)?.message || e);
+    if (/unique|duplicate/i.test(msg)) throw new Error("Another staff account already uses that email");
+    throw e;
+  }
+  return { email: next };
 }
