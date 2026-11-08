@@ -28,7 +28,7 @@ export function InstallAppButton({ className, variant = "icon" }: { className?: 
   const runNativeInstall = async () => {
     const outcome = await promptInstall();
     if (outcome === "accepted") {
-      toast.success("Installed — open Kijabe Queue from your apps / Home Screen");
+      toast.success("Installed — open Kijabe Care Flow from your apps / Home Screen");
       setInstalled(true);
       setOpen(false);
       return true;
@@ -79,7 +79,7 @@ export function InstallAppButton({ className, variant = "icon" }: { className?: 
           <MonitorDown className="h-6 w-6" />
         </span>
         <span>
-          <span className="block text-base font-bold">Install Kijabe Queue</span>
+          <span className="block text-base font-bold">Install Kijabe Care Flow</span>
           <span className="block text-xs text-primary-foreground/85">
             Works on any phone or computer · always updates online
           </span>
@@ -115,7 +115,7 @@ export function InstallAppButton({ className, variant = "icon" }: { className?: 
             <div className="flex items-center gap-3">
               <img src="/icons/icon-192.png" alt="" className="h-14 w-14 rounded-2xl border object-cover" />
               <div>
-                <h2 id="install-title" className="font-display text-xl font-bold">Install Kijabe Queue</h2>
+                <h2 id="install-title" className="font-display text-xl font-bold">Install Kijabe Care Flow</h2>
                 <p className="text-sm text-muted-foreground">Add to this device · opens as an app · stays up to date</p>
               </div>
             </div>

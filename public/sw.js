@@ -1,4 +1,4 @@
-/* Kijabe Queue PWA — network-first so every open gets the latest app */
+/* Kijabe Care Flow PWA — network-first so every open gets the latest app */
 const CACHE = "kijabe-queue-v2";
 const PRECACHE = [
   "/",

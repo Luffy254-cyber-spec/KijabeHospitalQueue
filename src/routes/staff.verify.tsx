@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { StaffOceanScene } from "@/components/staff-ocean-scene";
 
 export const Route = createFileRoute("/staff/verify")({
-  head: () => ({ meta: [{ title: "Confirm email — Kijabe Queue" }] }),
+  head: () => ({ meta: [{ title: "Confirm email — Kijabe Care Flow" }] }),
   component: VerifyEmail,
   validateSearch: (search: Record<string, unknown>) => ({
     oobCode: typeof search.oobCode === "string" ? search.oobCode : "",

@@ -43,7 +43,7 @@ export function installSteps(platform: InstallPlatform = getInstallPlatform()): 
         "Open this site in Safari (required on iPhone / iPad).",
         "Tap the Share button.",
         "Scroll and tap “Add to Home Screen”, then Add.",
-        "Open “Kijabe Queue” from your Home Screen — it launches like an app.",
+        "Open “Kijabe Care Flow” from your Home Screen — it launches like an app.",
       ];
     case "android":
       return [

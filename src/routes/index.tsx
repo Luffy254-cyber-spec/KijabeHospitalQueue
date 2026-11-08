@@ -17,9 +17,9 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Kijabe Hospital Queue — Outpatient Ticketing" },
+      { title: "Kijabe Care Flow — Outpatient Ticketing" },
       { name: "description", content: "Check-in kiosk, waiting-room TV display and staff console for AIC Kijabe Hospital outpatients." },
-      { property: "og:title", content: "Kijabe Hospital Queue — Outpatient Ticketing" },
+      { property: "og:title", content: "Kijabe Care Flow — Outpatient Ticketing" },
       { property: "og:description", content: "Check-in kiosk, waiting-room TV display and staff console for AIC Kijabe Hospital outpatients." },
     ],
   }),
@@ -102,8 +102,8 @@ function Index() {
             alt="AIC Kijabe Hospital"
             className="h-11 w-auto object-contain transition duration-300 group-hover:scale-105"
           />
-          <span className="hidden font-display text-lg font-bold text-foreground sm:inline">
-            Kijabe <span className="text-primary">Queue</span>
+          <span className="hidden whitespace-nowrap font-display text-lg font-bold text-foreground sm:inline">
+            Kijabe <span className="text-primary">Care Flow</span>
           </span>
         </Link>
         <nav className="flex items-center gap-2 sm:gap-3">

@@ -16,7 +16,7 @@ import { capitalizeName } from "@/lib/names";
 import { useIdleLogout } from "@/hooks/use-idle-logout";
 
 export const Route = createFileRoute("/admin")({
-  head: () => ({ meta: [{ title: "Superadmin — Kijabe Queue" }] }),
+  head: () => ({ meta: [{ title: "Superadmin — Kijabe Care Flow" }] }),
   component: AdminPage,
 });
 

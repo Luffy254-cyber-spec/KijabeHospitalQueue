@@ -15,7 +15,7 @@ type Pending = { email: string; sentAt: number };
 export const Route = createFileRoute("/staff/code")({
   head: () => ({
     meta: [
-      { title: "Enter login code — Kijabe Queue" },
+      { title: "Enter login code — Kijabe Care Flow" },
       { name: "description", content: "Enter the 6-digit staff verification code emailed to you." },
     ],
   }),

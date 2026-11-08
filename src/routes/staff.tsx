@@ -28,9 +28,9 @@ const BIOMETRIC_ENROLL_PENDING_KEY = "kh-biometric-enroll-pending";
 export const Route = createFileRoute("/staff")({
   head: () => ({
     meta: [
-      { title: "Staff Console — Kijabe Hospital Queue" },
+      { title: "Staff Console — Kijabe Care Flow" },
       { name: "description", content: "Call, serve and transfer outpatient tickets at AIC Kijabe Hospital." },
-      { property: "og:title", content: "Staff Console — Kijabe Hospital Queue" },
+      { property: "og:title", content: "Staff Console — Kijabe Care Flow" },
       { property: "og:description", content: "Call, serve and transfer outpatient tickets at AIC Kijabe Hospital." },
     ],
   }),
@@ -844,7 +844,7 @@ function Console({ email, userId }: { email: string; userId: string }) {
         <div className="flex items-center gap-4">
           <Link to="/" className="flex items-center gap-2 font-display text-xl font-bold text-primary">
             <img src="/brand/kijabe-logo.png" alt="" className="h-9 w-auto object-contain" />
-            Kijabe Queue
+            Kijabe Care Flow
           </Link>
           <Select value={counterId} onValueChange={(v) => { setCounterId(v); localStorage.setItem("kh-counter", v); }}>
             <SelectTrigger className="w-72"><SelectValue placeholder="Choose any counter / room" /></SelectTrigger>

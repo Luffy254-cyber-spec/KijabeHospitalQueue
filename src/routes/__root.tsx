@@ -77,16 +77,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Kijabe Hospital Queue" },
+      { title: "Kijabe Care Flow" },
       { name: "description", content: "Outpatient queue and ticketing system for AIC Kijabe Hospital." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "theme-color", content: "#159ed5" },
       { name: "mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-title", content: "Kijabe Queue" },
+      { name: "apple-mobile-web-app-title", content: "Care Flow" },
       { name: "apple-mobile-web-app-status-bar-style", content: "default" },
-      { name: "application-name", content: "Kijabe Queue" },
+      { name: "application-name", content: "Kijabe Care Flow" },
     ],
     links: [
       {
