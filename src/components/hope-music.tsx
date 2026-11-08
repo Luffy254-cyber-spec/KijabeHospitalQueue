@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { useRouterState } from "@tanstack/react-router";
 import { ChevronDown, Pause, Play, Waves } from "lucide-react";
 import {
-  advanceAmbient,
+  AMBIENT_VOLUME,
+  SLOT_SECONDS,
   ambientEnabled,
-  currentAmbient,
+  ambientSlot,
   setAmbientEnabled,
   startAmbient,
   subscribeAmbient,
@@ -13,14 +14,12 @@ import { onAnnounceActive } from "@/lib/announce";
 
 /**
  * One background player for the whole site. Mounted once in the root route so it
- * survives navigation, and shared through localStorage so every open page/tab
- * plays the same soft instrumental at the same position.
+ * survives navigation; every page, tab and browser derives the same track and
+ * offset from the wall clock, so they all play the same song at the same time.
  */
 
 const EMBED_H = 198;
 const UI_KEY = "kh-hope-expanded";
-const MAX_SKIPS = 8;
-const STALE_AFTER_S = 900;
 
 /** Full-screen waiting-room boards: the panel would cover the queue itself. */
 function isBoard(path: string) {
@@ -111,9 +110,8 @@ export function AmbientMusic() {
   const duckRef = useRef(false);
   const readyRef = useRef(false);
   const loadedIndexRef = useRef(0);
-  const switchingRef = useRef(false);
-  const blockedRef = useRef<Set<string>>(new Set());
-  const skipsRef = useRef(0);
+  const loadedSlotRef = useRef(-1);
+  const blockedRef = useRef<Map<string, number>>(new Map());
 
   const [ready, setReady] = useState(false);
   const [enabled, setEnabledState] = useState(false);
@@ -139,13 +137,14 @@ export function AmbientMusic() {
   const loadShared = (autoplay: boolean) => {
     const p = playerRef.current;
     if (!p) return;
-    const { index, track, elapsed } = currentAmbient();
+    const { index, track, elapsed, slot } = ambientSlot();
     loadedIndexRef.current = index;
-    const start = elapsed > STALE_AFTER_S ? 0 : elapsed;
+    loadedSlotRef.current = slot;
     setStatus(track.title);
     try {
-      if (autoplay) p.loadVideoById({ videoId: track.id, startSeconds: start });
-      else p.cueVideoById({ videoId: track.id, startSeconds: start });
+      const args = { videoId: track.id, startSeconds: Math.max(0, elapsed) };
+      if (autoplay) p.loadVideoById(args);
+      else p.cueVideoById(args);
     } catch {
       /* ignore */
     }
@@ -156,7 +155,7 @@ export function AmbientMusic() {
     if (!p || !readyRef.current || !shouldPlayNow()) return false;
     try {
       p.unMute();
-      p.setVolume(62);
+      p.setVolume(AMBIENT_VOLUME);
       p.playVideo();
       return true;
     } catch {
@@ -164,24 +163,41 @@ export function AmbientMusic() {
     }
   };
 
-  /** Move every page to the next shared track and load it here. */
-  const shiftShared = () => {
-    if (skipsRef.current > MAX_SKIPS) {
-      setStatus("Hope · unavailable, tap to retry");
-      return;
-    }
-    switchingRef.current = true;
-    const { index } = advanceAmbient(loadedIndexRef.current);
-    switchingRef.current = false;
-    loadedIndexRef.current = index;
-    skipsRef.current += 1;
+  /** The slot clock already moved on — reload whatever the ward should hear now. */
+  const reloadShared = () => {
     loadShared(shouldPlayNow());
-    window.setTimeout(() => tryPlay(), 350);
+    if (shouldPlayNow()) window.setTimeout(() => tryPlay(), 400);
+  };
+
+  /** Track ended inside its own slot: play it again from the top. */
+  const restartShared = () => {
+    const p = playerRef.current;
+    if (!p) return;
+    const { index, track, slot } = ambientSlot();
+    loadedIndexRef.current = index;
+    loadedSlotRef.current = slot;
+    try {
+      const args = { videoId: track.id, startSeconds: 0 };
+      if (shouldPlayNow()) p.loadVideoById(args);
+      else p.cueVideoById(args);
+    } catch {
+      /* ignore */
+    }
+    if (shouldPlayNow()) window.setTimeout(() => tryPlay(), 400);
   };
 
   const skipBroken = (videoId: string | undefined) => {
-    if (videoId) blockedRef.current.add(videoId);
-    shiftShared();
+    if (!videoId) return;
+    const tries = (blockedRef.current.get(videoId) ?? 0) + 1;
+    blockedRef.current.set(videoId, tries);
+    // A deterministic playlist cannot skip ahead without losing sync, so retry a
+    // few times and then stay quiet until the next slot.
+    if (tries > 3) {
+      setStatus("Hope · music unavailable");
+      return;
+    }
+    setStatus("Hope · retrying");
+    window.setTimeout(reloadShared, 15000);
   };
 
   // Boot the embed once for the lifetime of the app.
@@ -198,8 +214,9 @@ export function AmbientMusic() {
     mountRef.current.innerHTML = "";
     mountRef.current.appendChild(slot);
 
-    const initial = currentAmbient();
+    const initial = ambientSlot();
     loadedIndexRef.current = initial.index;
+    loadedSlotRef.current = initial.slot;
 
     void bootYouTube()
       .then((YT) => {
@@ -223,6 +240,8 @@ export function AmbientMusic() {
             iv_load_policy: 3,
             enablejsapi: 1,
             origin: window.location.origin,
+            hl: "en",
+            cc_lang_pref: "en",
           },
           events: {
             onReady: (e: { target: YTPlayer }) => {
@@ -242,14 +261,20 @@ export function AmbientMusic() {
               if (gone || !ytRef.current) return;
               const st = ytRef.current.PlayerState;
               if (e.data === st.PLAYING) {
-                skipsRef.current = 0;
+                const id = ambientSlot().track.id;
+                blockedRef.current.delete(id);
                 setStatus("Hope · soft worship");
               }
-              if (e.data === st.ENDED) shiftShared();
+              // Rotation is on a wall-clock slot, so the next track is whatever
+              // every other page is already on.
+              if (e.data === st.ENDED) {
+                if (ambientSlot().slot === loadedSlotRef.current) restartShared();
+                else reloadShared();
+              }
             },
             onError: () => {
               if (gone) return;
-              const { track } = currentAmbient();
+              const { track } = ambientSlot();
               skipBroken(track.id);
             },
           },
@@ -291,10 +316,10 @@ export function AmbientMusic() {
         setStatus("Hope · sound off");
         return;
       }
-      if (duckRef.current || switchingRef.current || !readyRef.current) return;
+      if (duckRef.current || !readyRef.current) return;
 
-      const { index, track } = currentAmbient();
-      if (index !== loadedIndexRef.current) {
+      const { index, track, slot } = ambientSlot();
+      if (index !== loadedIndexRef.current || slot !== loadedSlotRef.current) {
         loadShared(true);
         setStatus(track.title);
         window.setTimeout(() => tryPlay(), 400);
@@ -305,6 +330,18 @@ export function AmbientMusic() {
     return subscribeAmbient(sync);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Every 15-minute slot rolls the playlist forward on every page at once.
+  useEffect(() => {
+    if (!ready) return;
+    const id = window.setInterval(() => {
+      if (!shouldPlayNow() || !readyRef.current) return;
+      if (ambientSlot().slot === loadedSlotRef.current) return;
+      reloadShared();
+    }, 15000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
 
   // Pause under PA announcements made from any page/tab.
   useEffect(
@@ -318,8 +355,10 @@ export function AmbientMusic() {
           if (active) p.pauseVideo();
           else if (enabledRef.current) {
             p.unMute();
-            p.setVolume(62);
-            p.playVideo();
+            p.setVolume(AMBIENT_VOLUME);
+            // A long announcement can cross a rotation boundary.
+            if (ambientSlot().slot !== loadedSlotRef.current) reloadShared();
+            else p.playVideo();
           }
         } catch {
           /* ignore */
@@ -338,6 +377,26 @@ export function AmbientMusic() {
     return () => {
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // A suspended tab, a sleeping host or a dropped connection can leave the
+  // player paused. Come back to the slot the rest of the ward is already on.
+  useEffect(() => {
+    const resume = () => {
+      if (document.visibilityState !== "visible") return;
+      if (!enabledRef.current || duckRef.current || !readyRef.current) return;
+      if (ambientSlot().slot !== loadedSlotRef.current) reloadShared();
+      else tryPlay();
+    };
+    document.addEventListener("visibilitychange", resume);
+    window.addEventListener("online", resume);
+    window.addEventListener("pageshow", resume);
+    return () => {
+      document.removeEventListener("visibilitychange", resume);
+      window.removeEventListener("online", resume);
+      window.removeEventListener("pageshow", resume);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -399,7 +458,7 @@ export function AmbientMusic() {
             <div>
               <p className="hope-music-label">{status}</p>
               <p className="hope-music-hint">
-                Soft instrumental · same song on every page
+                Soft instrumental · same song on every page · rotates every {Math.round(SLOT_SECONDS / 60)} min
                 {duck ? " · PA" : ""}
               </p>
             </div>

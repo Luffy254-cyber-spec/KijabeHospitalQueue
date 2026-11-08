@@ -4,6 +4,7 @@ import { Volume2, VolumeX } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { onAnnounceActive, speakHospitalToken, stopAnnouncement, wasTokenAnnouncedRecently } from "@/lib/announce";
 import { CHIME_LABELS, currentChime, cycleChime, unlockChimes, type ChimeKind } from "@/lib/chimes";
+import { VOICE_LABELS, currentVoice, cycleVoice, type PaVoice } from "@/lib/voice";
 import { StaffOceanScene } from "@/components/staff-ocean-scene";
 import { ambientEnabled, setAmbientEnabled, startAmbient, subscribeAmbient } from "@/lib/ambient-music";
 
@@ -91,6 +92,9 @@ function Display() {
   const [announceDuck, setAnnounceDuck] = useState(false);
   const [chime, setChime] = useState<ChimeKind>(() =>
     typeof window === "undefined" ? "classic" : currentChime(),
+  );
+  const [voice, setVoice] = useState<PaVoice>(() =>
+    typeof window === "undefined" ? "Vindemiatrix" : currentVoice(),
   );
   const seen = useRef<Set<string> | null>(null);
   const readingLock = useRef(false);
@@ -380,6 +384,14 @@ function Display() {
                   title="Change the alert chime"
                 >
                   {CHIME_LABELS[chime]}
+                </button>
+                <button
+                  type="button"
+                  className="tv-btn"
+                  onClick={() => setVoice(cycleVoice())}
+                  title="Change the Gemini PA voice"
+                >
+                  {VOICE_LABELS[voice]}
                 </button>
                 <button
                   type="button"

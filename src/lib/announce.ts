@@ -1,6 +1,7 @@
 /** Hospital-style PA announcements — English only, one ticket per call. */
 
 import { playChime } from "@/lib/chimes";
+import { currentVoice } from "@/lib/voice";
 
 const DIGIT: Record<string, string> = {
   "0": "zero",
@@ -212,17 +213,48 @@ export function speakHospitalToken(token: string, counter: string | null, opts?:
     };
 
     setAnnounceActive(true);
-    // Long Gemini lines can exceed 20s, so keep music paused until it really ends.
-    armSafety(90000);
+    // Long Gemini lines are read twice, so keep music paused until both end.
+    armSafety(180000);
 
+    // Two chimes in a row, then the ticket is read twice — always in sequence,
+    // never on top of each other.
     await playChime();
     if (id !== paId) return;
+    await playChime();
+    if (id !== paId) return;
+
+    const playAudioTwice = async (url: string) => {
+      const once = () =>
+        new Promise<boolean>((resolve) => {
+          const audio = new Audio(url);
+          audio.preload = "auto";
+          currentAudio = audio;
+          let settled = false;
+          const done = (ok: boolean) => {
+            if (settled) return;
+            settled = true;
+            if (currentAudio === audio) currentAudio = null;
+            resolve(ok);
+          };
+          audio.onloadedmetadata = () => {
+            if (Number.isFinite(audio.duration) && audio.duration > 0) {
+              armSafety(Math.ceil(audio.duration * 2000) + 8000);
+            }
+          };
+          audio.onended = () => done(true);
+          audio.onerror = () => done(false);
+          audio.play().catch(() => done(false));
+        });
+      if (!(await once())) return false;
+      if (id !== paId) return true;
+      return once();
+    };
 
     try {
       const res = await fetch("/api/public/announce", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, voice: currentVoice() }),
       });
       if (id !== paId) return;
       if (!res.ok) {
@@ -232,28 +264,13 @@ export function speakHospitalToken(token: string, counter: string | null, opts?:
         if (id !== paId) return;
         if (blob.size > 0 && (blob.type.startsWith("audio/") || blob.type === "application/octet-stream")) {
           const url = URL.createObjectURL(blob);
-          const audio = new Audio(url);
-          audio.preload = "auto";
-          currentAudio = audio;
-          audio.onloadedmetadata = () => {
-            if (Number.isFinite(audio.duration) && audio.duration > 0) {
-              armSafety(Math.ceil(audio.duration * 1000) + 2000);
-            }
-          };
-          audio.onended = () => {
-            URL.revokeObjectURL(url);
-            clear();
-          };
-          audio.onerror = () => {
-            URL.revokeObjectURL(url);
-          };
-          try {
-            await audio.play();
+          const finished = await playAudioTwice(url);
+          URL.revokeObjectURL(url);
+          if (id !== paId) return;
+          if (finished) {
             // The Gemini voice is on air — never start the browser voice too.
+            clear();
             return;
-          } catch {
-            URL.revokeObjectURL(url);
-            if (currentAudio === audio) currentAudio = null;
           }
         }
       }
@@ -262,7 +279,10 @@ export function speakHospitalToken(token: string, counter: string | null, opts?:
     }
 
     if (id !== paId) return;
-    speakBrowserFallback(text, clear);
+    speakBrowserFallback(text, () => {
+      if (id !== paId) return;
+      speakBrowserFallback(text, clear);
+    });
   };
   void play();
 }

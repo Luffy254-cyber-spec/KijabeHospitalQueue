@@ -2,8 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { corsHeaders } from "@/lib/http-security";
 import { guardRate } from "@/lib/security.server";
 
-/** Gemini female voices: warm, gentle, then smooth. */
-const VOICES = ["Sulafat", "Vindemiatrix", "Despina"] as const;
+/** Gemini female voices: gentle, warm, then smooth — chosen from the display. */
+const VOICES = ["Vindemiatrix", "Sulafat", "Despina"] as const;
 
 function pcmToWav(pcm: Buffer, sampleRate = 24000): Buffer {
   const header = Buffer.alloc(44);
@@ -75,11 +75,15 @@ export const Route = createFileRoute("/api/public/announce")({
         if (!key) {
           return Response.json({ error: "Set GEMINI_API_KEY to use the female Gemini voice." }, { status: 503, headers: cors });
         }
-        const body = (await request.json().catch(() => ({}))) as { text?: string };
+        const body = (await request.json().catch(() => ({}))) as { text?: string; voice?: string };
         const text = (body.text || "").trim().slice(0, 800);
         if (!text) return Response.json({ error: "Missing text" }, { status: 400, headers: cors });
 
-        for (const voice of VOICES) {
+        // Start with the operator's chosen voice, then fall back to the other
+        // female voices so a temporary TTS failure still reaches the ward.
+        const requested = VOICES.find((v) => v === body.voice) ?? "Vindemiatrix";
+        const order = [requested, ...VOICES.filter((v) => v !== requested)];
+        for (const voice of order) {
           try {
             const spoken = await geminiSpeech(text, voice, key);
             if (!spoken) continue;

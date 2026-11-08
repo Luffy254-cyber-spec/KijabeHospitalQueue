@@ -16,6 +16,7 @@ import { AmbientMusic } from "@/components/hope-music";
 import appCss from "../styles.css?url";
 import { registerPwa } from "@/lib/pwa";
 import { useKeepAwake } from "@/lib/keep-awake";
+import { useServerHeartbeat } from "@/lib/server-heartbeat";
 
 function NotFoundComponent() {
   return (
@@ -139,6 +140,7 @@ function RootComponent() {
     registerPwa();
   }, []);
   useKeepAwake();
+  useServerHeartbeat();
 
   return (
     <QueryClientProvider client={queryClient}>

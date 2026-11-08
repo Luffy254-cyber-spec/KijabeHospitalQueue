@@ -1,7 +1,10 @@
 /**
- * One soft-instrumental playlist shared by every page. The current track lives
- * in localStorage so navigation does not restart the music and two open tabs
- * play the same song at the same position.
+ * One soft-instrumental playlist shared by every page, tab and browser.
+ *
+ * Instead of storing playback state per browser, every client derives the same
+ * track and offset from the wall clock: a fixed-length slot per track, counted
+ * from one UTC epoch. Two screens opened minutes apart therefore land on the
+ * same song at the same second, and the playlist advances and loops on its own.
  */
 
 export type AmbientTrack = { id: string; title: string };
@@ -21,56 +24,35 @@ export const ENABLED_KEY = "kh-ambient-enabled";
 export const UNLOCK_EVENT = "kh-hope-unlock";
 export const AMBIENT_EVENT = "kh-ambient-change";
 
-type AmbientState = { index: number; startedAt: number };
+/** Long ambient compilations, so a 15-minute slot never runs past a track. */
+export const SLOT_SECONDS = 15 * 60;
+/** Quiet background bed: 20% of the player's range. */
+export const AMBIENT_VOLUME = 20;
 
-const STATE_KEY = "kh-ambient-state";
+const EPOCH = Date.UTC(2026, 0, 1, 0, 0, 0);
+const SLOT_MS = SLOT_SECONDS * 1000;
 const LEGACY_KEYS = ["kh-staff-login-sound", "kh-display-sound"];
 
-function safeParse(raw: string | null): AmbientState | null {
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as Partial<AmbientState>;
-    if (typeof parsed.index !== "number" || typeof parsed.startedAt !== "number") return null;
-    if (parsed.index < 0 || parsed.index >= AMBIENT_TRACKS.length) return null;
-    return { index: Math.floor(parsed.index), startedAt: parsed.startedAt };
-  } catch {
-    return null;
-  }
-}
+export type AmbientSlot = {
+  index: number;
+  track: AmbientTrack;
+  elapsed: number;
+  remaining: number;
+  slot: number;
+};
 
-export function readAmbientState(): AmbientState {
-  if (typeof window === "undefined") return { index: 0, startedAt: Date.now() };
-  const stored = safeParse(localStorage.getItem(STATE_KEY));
-  if (stored) return stored;
-  const fresh = { index: 0, startedAt: Date.now() };
-  writeAmbientState(fresh);
-  return fresh;
-}
-
-export function writeAmbientState(next: AmbientState) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(STATE_KEY, JSON.stringify(next));
-  window.dispatchEvent(new CustomEvent(AMBIENT_EVENT, { detail: next }));
-}
-
-export function currentAmbient(): { index: number; track: AmbientTrack; elapsed: number } {
-  const state = readAmbientState();
-  const elapsed = Math.max(0, Math.floor((Date.now() - state.startedAt) / 1000));
-  const track = AMBIENT_TRACKS[state.index] ?? AMBIENT_TRACKS[0]!;
-  return { index: state.index, track, elapsed };
-}
-
-/** Move to the next track and remember when it started, for every page/tab. */
-export function advanceAmbient(fromIndex: number): { index: number; track: AmbientTrack } {
-  const now = Date.now();
-  const state = readAmbientState();
-  // Another tab may already have advanced while this one was buffering.
-  if (state.index !== fromIndex) {
-    return { index: state.index, track: AMBIENT_TRACKS[state.index] ?? AMBIENT_TRACKS[0]! };
-  }
-  const index = (fromIndex + 1) % AMBIENT_TRACKS.length;
-  writeAmbientState({ index, startedAt: now });
-  return { index, track: AMBIENT_TRACKS[index] ?? AMBIENT_TRACKS[0]! };
+/** The same result in every browser at the same instant. */
+export function ambientSlot(now = Date.now()): AmbientSlot {
+  const slot = Math.floor((now - EPOCH) / SLOT_MS);
+  const index = ((slot % AMBIENT_TRACKS.length) + AMBIENT_TRACKS.length) % AMBIENT_TRACKS.length;
+  const elapsed = Math.floor(((now - EPOCH) % SLOT_MS) / 1000);
+  return {
+    index,
+    track: AMBIENT_TRACKS[index] ?? AMBIENT_TRACKS[0]!,
+    elapsed,
+    remaining: SLOT_SECONDS - elapsed,
+    slot,
+  };
 }
 
 export function ambientEnabled(): boolean {
@@ -98,7 +80,7 @@ export function startAmbient() {
 export function subscribeAmbient(listener: () => void): () => void {
   if (typeof window === "undefined") return () => {};
   const onStorage = (event: StorageEvent) => {
-    if (!event.key || event.key === STATE_KEY || event.key === ENABLED_KEY || LEGACY_KEYS.includes(event.key)) {
+    if (!event.key || event.key === ENABLED_KEY || LEGACY_KEYS.includes(event.key)) {
       listener();
     }
   };

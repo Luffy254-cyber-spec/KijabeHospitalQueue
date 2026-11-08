@@ -1976,6 +1976,16 @@ html {
   bottom: max(0.55rem, env(safe-area-inset-bottom));
   z-index: 45;
 }
+/* The landing page floats an "Email us" pill in the same corner: stack the
+   player above it, with a clear gap, without moving the pill. */
+.kh-support-pills .hope-dock-global {
+  bottom: max(6.6rem, calc(env(safe-area-inset-bottom) + 6.1rem));
+}
+@media (max-width: 640px) {
+  .kh-support-pills .hope-dock-global {
+    bottom: max(6.1rem, calc(env(safe-area-inset-bottom) + 5.6rem));
+  }
+}
 .hope-panel-actions {
   display: flex;
   align-items: center;

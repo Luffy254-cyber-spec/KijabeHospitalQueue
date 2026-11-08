@@ -12,7 +12,12 @@ const labelCls =
 
 export function HospitalSupportPills() {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+    // Lifts the hope player above the Email us pill in the same corner.
+    document.body.classList.add("kh-support-pills");
+    return () => document.body.classList.remove("kh-support-pills");
+  }, []);
   if (!mounted) return null;
 
   return createPortal(

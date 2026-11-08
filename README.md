@@ -69,6 +69,13 @@ flowchart LR
 | **Ticket status** | Patients track their own ticket from a phone | RPC-only; phone numbers stay hidden from the public |
 | **Automation** | Departments tune their own wait thresholds | Bounded validation, admin-only writes, simulation mirrors the DB checks |
 
+### Waiting-room ambience
+
+- One soft instrumental bed plays at **20% volume** on every page, tab and browser. The song and its position come from a wall-clock slot (15 minutes, from a fixed UTC epoch), so any screen that joins lands on the same track at the same second — no echo, no drift — and the playlist advances and loops on its own.
+- The round player can be **paused** at any time. While a screen is open it also **resumes by itself** after the tab, the browser or the host wakes up, returning to the slot the rest of the ward is already on.
+- Every open screen sends a **10-minute heartbeat** to its own origin, so a free Render instance is never allowed to idle out; the next patient gets a warm server instead of a cold start.
+- The floating **Email us** pill and the music player share a corner but never overlap: the player stacks above the pill.
+
 ### The audit rule
 
 > `ticket_events` is **append-only**: staff can read it, never rewrite it, and it must never hold patient identifiers. Compliance is a schema decision, not a policy PDF.
@@ -205,24 +212,24 @@ Small details matter here:
 
 ## Deploy
 
-`render.yaml` provisions the Node web service. The database lives on [Neon](https://neon.tech) free Postgres, because Render's free PostgreSQL expires 30 days after creation.
+`render.yaml` provisions the Node web service. The database is a managed PostgreSQL instance with a publicly reachable endpoint, because Render's own free PostgreSQL expires 30 days after creation.
 
 <details open>
 <summary><strong>Render — dashboard walkthrough</strong></summary>
 
-1. **Neon:** create a project in an EU region, then copy the **pooled** connection string (the host contains `-pooler`) — Render cannot reach Neon's IPv6-only direct host. It already ends in `?sslmode=require`.
+1. **Database:** create a PostgreSQL instance with a reachable public endpoint (a managed provider is easiest). Copy its connection string from your provider's dashboard — it must include TLS, and hosted providers usually require SSL mode. Keep that string in a password manager; it is a secret.
 2. **Provision the schema once**, from the repo on your machine:
    ```sh
-   DATABASE_URL="postgresql://…-pooler….neon.tech/neondb?sslmode=require" npm run db:bootstrap
+   DATABASE_URL="<your-hosted-postgres-url>" npm run db:bootstrap
    ```
-   This creates the `auth` shim, applies every migration, and seeds `admin@kijabe.local` / `admin1234`. Change that password after signing in.
-3. Render → **New → Blueprint**, connect `Luffy254-cyber-spec/KijabeHospitalQueue`, and apply. The build runs `npm ci && npm run build`; Nitro emits a Node server and `npm start` boots `.output/server/index.mjs` on Render's `PORT`.
-4. Fill the values marked `sync: false`: `DATABASE_URL` (the Neon pooled URL), `GEMINI_API_KEY`, the M-Pesa credentials, `MPESA_CALLBACK_URL`, `VITE_PUBLIC_APP_URL` and `PUBLIC_APP_URL` (use `https://kijabe-careflow-queue.onrender.com`).
+   This creates the `auth` shim and applies every migration, then seeds a development administrator that the script prints on completion. That account is local-only — use a different, strong password for any hosted database and never publish either value.
+3. Render → **New → Blueprint**, connect the repository, and apply. The build runs `npm ci && npm run build`; Nitro emits a Node server and `npm start` boots `.output/server/index.mjs` on Render's `PORT`.
+4. Fill the values marked `sync: false`: `DATABASE_URL`, `GEMINI_API_KEY`, the M-Pesa credentials, `MPESA_CALLBACK_URL`, `VITE_PUBLIC_APP_URL` and `PUBLIC_APP_URL` (use your deployed HTTPS origin).
 5. Redeploy after the first successful boot so ticket QRs pick up the final public URL.
 
 </details>
 
-> **Free tier reality check:** Free instance types do not support pre-deploy commands, which is why step 2 runs from your machine; re-run it after pulling new migrations. Free web services also sleep after 15 minutes idle — keep the kiosk awake with a free uptime pinger, or move to the Starter instance for production.
+> **Free tier reality check:** Free instance types do not support pre-deploy commands, which is why step 2 runs from your machine. Apply only the **new** migrations after pulling — re-running the full bootstrap re-seeds the development administrator and should not be done against a live database. Free web services sleep after 15 minutes idle; any open screen keeps the instance warm through the built-in 10-minute heartbeat, so no external uptime pinger is required.
 
 > `VITE_PUBLIC_APP_URL` is baked in at build time — set it before the first deploy so ticket QR codes point at the public domain. Ticket QRs resolve at runtime through `/api/public/app-origin`: a public deployment always returns its own origin (or the public `VITE_PUBLIC_APP_URL`), never a LAN address, so a phone on mobile data can scan a printed ticket and land on `https://<your-domain>/ticket/<id>`.
 
@@ -230,13 +237,13 @@ Small details matter here:
 
 | Variable | Production value |
 | :--- | :--- |
-| `DATABASE_URL` | Neon **pooled** PostgreSQL URL (`?sslmode=require`) |
+| `DATABASE_URL` | Hosted PostgreSQL connection string (TLS required) |
 | `AUTH_SECRET` | 32+ random characters, different from development — sign-in and throttling both depend on it |
 | `MPESA_CALLBACK_SECRET` | Long random string; it is appended to the Daraja callback URL as `?token=…`, so keep `MPESA_CALLBACK_URL` free of a query string |
 | `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | From the Cloudflare Turnstile widget; leave blank to keep the challenge disabled |
 | `GEMINI_API_KEY` | Gemini key for advisors and announcements |
-| `MPESA_ENV` | `production` for paybill 512900 |
-| `MPESA_SHORTCODE` | `512900` |
+| `MPESA_ENV` | `production` |
+| `MPESA_SHORTCODE` | Your production paybill / till number |
 | `MPESA_PASSKEY` | Production passkey for that shortcode |
 | `MPESA_CONSUMER_KEY` / `MPESA_CONSUMER_SECRET` | Daraja **production** app credentials |
 | `MPESA_CALLBACK_URL` | `https://<your-domain>/api/mpesa/callback` |
@@ -244,13 +251,13 @@ Small details matter here:
 | `PUBLIC_APP_URL` | `https://<your-domain>` |
 | `SMTP_HOST` / `SMTP_PORT` | Leave blank — Firebase Auth sends staff mail (`465` TLS, `587` STARTTLS only if used) |
 | `SMTP_USER` / `SMTP_PASS` | Only needed when `SMTP_HOST` is set |
-| `MAIL_FROM` | Optional sender address, e.g. `noreply@kijabehospital.or.ke` — replaces the Firebase sender |
+| `MAIL_FROM` | Optional sender address on your own domain — replaces the Firebase sender |
 
 <details>
 <summary><strong>Finishing M-Pesa for production</strong> — 5 steps</summary>
 
 1. Open the Daraja portal and confirm the app is a **production** app (sandbox keys are rejected by `api.safaricom.co.ke`).
-2. Copy the **Lipa na M-Pesa Online passkey** shown for shortcode `512900` — the sandbox test passkey will not authenticate a live paybill.
+2. Copy the **Lipa na M-Pesa Online passkey** shown for your production shortcode — the sandbox test passkey will not authenticate a live paybill.
 3. Set `MPESA_ENV=production`, the shortcode, the production passkey, and the production consumer key/secret.
 4. Set `MPESA_CALLBACK_URL` to the deployed domain. It must be public HTTPS and end in `/api/mpesa/callback`; Safaricom will not post to localhost. For local testing, expose the dev server through a tunnel and temporarily use that URL.
 5. Pay a small amount through the staff console, then confirm the ticket shows a receipt and `payments` reconciles via the callback.
@@ -260,9 +267,9 @@ Small details matter here:
 <details>
 <summary><strong>Firebase Hosting &amp; database notes</strong></summary>
 
-**Firebase Hosting.** `kijabeoutflow.firebaseapp.com` is Firebase’s default domain, not a Node runtime — it cannot serve SSR routes or `/api/mpesa/callback` by itself. Use Cloud Functions/Cloud Run for the server, or point M-Pesa at the Render deployment.
+**Firebase Hosting.** Firebase’s default `*.firebaseapp.com` domain is static hosting, not a Node runtime — it cannot serve SSR routes or `/api/mpesa/callback` by itself. Use Cloud Functions/Cloud Run for the server, or point M-Pesa at the Render deployment.
 
-**Database.** Either host needs a reachable PostgreSQL instance; `localhost` is not reachable from the cloud. Run `npm run db:bootstrap` against the hosted database, and confirm the `pg_cron` automation job is available (or drive `run_queue_automation()` from the display poller, which already wakes it).
+**Database.** Either host needs a reachable PostgreSQL instance; `localhost` is not reachable from the cloud. Apply the migrations to the hosted database from your machine, and confirm the scheduled automation job is available in your provider (or drive `run_queue_automation()` from the display poller, which already wakes it).
 
 </details>
 
