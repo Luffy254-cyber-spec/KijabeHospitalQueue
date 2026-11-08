@@ -1,7 +1,7 @@
 {
   "id": "/?source=pwa",
-  "name": "Kijabe Hospital Queue",
-  "short_name": "Kijabe Queue",
+  "name": "Kijabe Care Flow",
+  "short_name": "Care Flow",
   "description": "Outpatient check-in, waiting-room display and staff console for AIC Kijabe Hospital. Install once — opens as an app and stays up to date.",
   "start_url": "/?source=pwa",
   "scope": "/",
