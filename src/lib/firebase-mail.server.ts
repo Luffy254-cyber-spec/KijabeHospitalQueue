@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomInt } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomInt } from "node:crypto";
 import { sql } from "@/lib/db.server";
 import { sendBrandMail, smtpConfigured } from "@/lib/mail.server";
 
@@ -20,42 +20,77 @@ function hashCode(code: string) {
   return createHash("sha256").update(code).digest("hex");
 }
 
+/**
+ * Firebase accounts are project-wide, not per-database, so every deployment
+ * sharing the project must be able to sign in to the same conduit user. A
+ * per-address derived password makes that possible without copying secrets
+ * between environments. The stored secret stays as a fallback for conduits
+ * created before this scheme and is rotated to the derived one on next use.
+ */
+function conduitPassword(address: string) {
+  const pepper = (process.env["MAIL_CONDUIT_SECRET"] || "kijabe-careflow-email-conduit-v1").trim();
+  return createHmac("sha256", pepper).update(`conduit:${address}`).digest("base64url").slice(0, 40);
+}
+
 async function ensureFirebaseUser(email: string): Promise<{ idToken: string; localId: string; password: string }> {
   const address = email.trim().toLowerCase();
   const existing = await sql`
     select firebase_local_id, firebase_purge_secret from auth.users where lower(email) = ${address} limit 1
   `;
   const row = existing[0] as { firebase_local_id: string | null; firebase_purge_secret: string | null } | undefined;
-  if (row?.firebase_local_id && row.firebase_purge_secret) {
+  const derived = conduitPassword(address);
+  const stored = row?.firebase_purge_secret || null;
+  const candidates = stored && stored !== derived ? [stored, derived] : [derived];
+
+  for (const password of candidates) {
     try {
       const signed = await post<{ idToken: string; localId: string }>("accounts:signInWithPassword", {
         email: address,
-        password: row.firebase_purge_secret,
+        password,
         returnSecureToken: true,
       });
-      return { idToken: signed.idToken, localId: signed.localId, password: row.firebase_purge_secret };
+      let idToken = signed.idToken;
+      let used = password;
+      if (password !== derived) {
+        try {
+          const rotated = await post<{ idToken?: string }>("accounts:update", {
+            idToken,
+            password: derived,
+            returnSecureToken: true,
+          });
+          idToken = rotated.idToken || idToken;
+          used = derived;
+        } catch {
+          /* keep the legacy secret so mail still goes out */
+        }
+      }
+      await sql`
+        update auth.users
+        set firebase_local_id = ${signed.localId}, firebase_purge_secret = ${used}
+        where lower(email) = ${address}
+      `;
+      return { idToken, localId: signed.localId, password: used };
     } catch {
-      /* recreate below */
+      /* try the next candidate */
     }
   }
-  const password = randomBytes(24).toString("base64url");
+
   try {
     const created = await post<{ idToken: string; localId: string }>("accounts:signUp", {
       email: address,
-      password,
+      password: derived,
       returnSecureToken: true,
     });
     await sql`
       update auth.users
-      set firebase_local_id = ${created.localId}, firebase_purge_secret = ${password}
+      set firebase_local_id = ${created.localId}, firebase_purge_secret = ${derived}
       where lower(email) = ${address}
     `;
-    return { idToken: created.idToken, localId: created.localId, password };
+    return { idToken: created.idToken, localId: created.localId, password: derived };
   } catch (e) {
     const msg = String((e as Error)?.message || e);
     if (/EMAIL_EXISTS/i.test(msg)) {
-      // Orphan Firebase account — cannot recover without admin; surface a clear error
-      throw new Error("Firebase still has this email. Confirm the previous link, or wait a minute and try again.");
+      throw new Error("This address is already registered with the mail service from another deployment. Ask admin@kijabe.local to sync it.");
     }
     throw e;
   }
@@ -67,22 +102,33 @@ async function purgeFirebase(email: string) {
     select firebase_local_id, firebase_purge_secret from auth.users where lower(email) = ${address} limit 1
   `;
   const row = rows[0] as { firebase_local_id: string | null; firebase_purge_secret: string | null } | undefined;
-  if (!row?.firebase_purge_secret) return;
-  try {
-    const signed = await post<{ idToken: string }>("accounts:signInWithPassword", {
-      email: address,
-      password: row.firebase_purge_secret,
-      returnSecureToken: true,
-    });
-    await post("accounts:delete", { idToken: signed.idToken });
-  } catch {
-    /* Postgres confirmation still stands */
+  const derived = conduitPassword(address);
+  const stored = row?.firebase_purge_secret || null;
+  const candidates = stored && stored !== derived ? [stored, derived] : [derived];
+  let deleted = false;
+  for (const password of candidates) {
+    try {
+      const signed = await post<{ idToken: string }>("accounts:signInWithPassword", {
+        email: address,
+        password,
+        returnSecureToken: true,
+      });
+      await post("accounts:delete", { idToken: signed.idToken });
+      deleted = true;
+      break;
+    } catch {
+      /* try the next candidate */
+    }
   }
-  await sql`
-    update auth.users
-    set firebase_local_id = null, firebase_purge_secret = null
-    where lower(email) = ${address}
-  `;
+  // Keep the secret when the delete failed: a later login can still use the
+  // conduit, and losing it would strand the project-wide Firebase account.
+  if (deleted) {
+    await sql`
+      update auth.users
+      set firebase_local_id = null, firebase_purge_secret = null
+      where lower(email) = ${address}
+    `;
+  }
 }
 
 /** Firebase rejects private LAN IPs in continueUrl — omit it so the verification email still sends. */
