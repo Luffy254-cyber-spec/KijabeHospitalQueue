@@ -3,7 +3,7 @@
 </div>
 
 <div align="center">
-  <img src="./public/icons/icon-192.png" width="96" height="96" alt="Kijabe Care Flow logo" />
+  <img src="./public/icons/icon-192.png" width="150" height="150" alt="Kijabe Care Flow logo" />
 </div>
 
 <h1 align="center">KIJABE CARE FLOW</h1>
