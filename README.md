@@ -1,16 +1,17 @@
 <div align="center">
-  <img src="./assets/readme-hero.svg" alt="Kijabe Care Flow — neon outpatient queue banner" width="100%" />
+  <img src="./assets/readme-hero.svg" alt="Kijabe Care Flow — animated outpatient queue banner" width="100%" />
 </div>
 
 <div align="center">
-  <img src="./public/favicon.png" width="88" height="88" alt="Kijabe Care Flow logo" />
+  <img src="./public/icons/icon-192.png" width="96" height="96" alt="Kijabe Care Flow logo" />
 </div>
 
 <h1 align="center">KIJABE CARE FLOW</h1>
 
 <p align="center">
   <strong>Outpatient queue intelligence for AIC Kijabe Hospital.</strong><br/>
-  Registration, kiosk check-in, staff console and room displays — one live queue, from the front door to the pharmacy window.
+  Registration, kiosk check-in, staff console and room displays —<br/>
+  one live queue, from the front door to the pharmacy window.
 </p>
 
 <p align="center">
@@ -26,11 +27,15 @@
   <em>“Health Care to God’s Glory.”</em>
 </p>
 
----
+**[The flow](#the-flow)** · **[Built for the floor](#built-for-the-floor-not-the-demo)** · **[The stack](#the-stack)** · **[Quick start](#quick-start)** · **[Design language](#design-language)** · **[Privacy](#privacy-posture)** · **[Deploy](#deploy)**
+
+<img src="./assets/readme-divider.svg" alt="" width="100%" />
 
 ## The flow
 
-A patient should never have to ask where to go next. Care Flow answers that with a single ticket that travels the hospital faster than the patient does.
+> **One ticket. Every desk. No one asking “where next?”**
+>
+> A patient should never have to ask where to go next. Care Flow answers that with a single ticket that travels the hospital faster than the patient does.
 
 ```mermaid
 flowchart LR
@@ -47,14 +52,14 @@ flowchart LR
   class R,K,Q,C,M,D,T,A lane;
 ```
 
-Every state change is a database function with an audit row underneath it — the neon is the interface, the trail is the truth.
+*Every state change is a database function with an audit row underneath it — the neon is the interface, the trail is the truth.*
 
----
+<img src="./assets/readme-divider.svg" alt="" width="100%" />
 
 ## Built for the floor, not the demo
 
 | Lane | What the user sees | Guardrail underneath |
-| --- | --- | --- |
+| :--- | :--- | :--- |
 | **Registration** | A calm, bilingual intake that leads with Kiswahili for new patients | Registrar-scoped access; nothing queues until registration lands |
 | **Kiosk** | One tap issues a ticket with a phone-scannable QR | Anonymous by design, RPC-only, no direct table reads |
 | **Queue engine** | Fair, atomic ticket numbers per department | Postgres security-definer functions; numbering and calling cannot race |
@@ -66,9 +71,13 @@ Every state change is a database function with an audit row underneath it — th
 
 ### The audit rule
 
-`ticket_events` is append-only: staff can read it, never rewrite it, and it must never hold patient identifiers. Compliance is a schema decision, not a policy PDF.
+> `ticket_events` is **append-only**: staff can read it, never rewrite it, and it must never hold patient identifiers. Compliance is a schema decision, not a policy PDF.
 
----
+### The nightly archive
+
+At **00:00 Africa/Nairobi** the server exports every finished visit from previous days (`done`, `no_show`, `closed`) together with its payments to **Superadmin → Patients & export → Nightly archive**, then deletes those rows. Waiting, called, in-room and pending-payment tickets are never touched. The export is written in the same transaction before the delete, and a free Render instance that was asleep at midnight catches up on the first request after it wakes.
+
+<img src="./assets/readme-divider.svg" alt="" width="100%" />
 
 ## The stack
 
@@ -115,7 +124,7 @@ flowchart TB
 - **M-Pesa Daraja** — STK push and callback reconciliation.
 - **WebAuthn** — biometric work-ID sign-in for staff.
 
----
+<img src="./assets/readme-divider.svg" alt="" width="100%" />
 
 ## Quick start
 
@@ -128,12 +137,15 @@ npm run db:bootstrap        # create schema, roles and helper functions
 npm run dev                 # http://localhost:8080
 ```
 
-Use `npm run dev -- --port 8081` if you prefer the kiosk port used on the LAN.
+> Use `npm run dev -- --port 8081` if you prefer the kiosk port used on the LAN.
 
 ### Environment
 
+<details open>
+<summary><strong>Environment variables</strong> — click to collapse</summary>
+
 | Variable | Purpose | Notes |
-| --- | --- | --- |
+| :--- | :--- | :--- |
 | `DATABASE_URL` | PostgreSQL connection string | Local `kijabe_care_flow` database by default |
 | `AUTH_SECRET` | Signs local staff session tokens | Replace the development value before deploying |
 | `GEMINI_API_KEY` | Queue advisor + announcements | Server-only; never expose to the client |
@@ -145,12 +157,14 @@ Use `npm run dev -- --port 8081` if you prefer the kiosk port used on the LAN.
 | `VITE_PUBLIC_APP_URL` | Origin encoded into ticket QR codes | LAN IP for kiosks, public domain when hosted |
 | `PUBLIC_APP_URL` | Origin used in staff verification emails | Must be a host Firebase allows |
 
-Secrets belong in `.env` (ignored by git) or in your host’s environment settings — never in a commit.
+</details>
+
+> Secrets belong in `.env` (ignored by git) or in your host’s environment settings — **never in a commit**.
 
 ### Useful scripts
 
 | Command | Does |
-| --- | --- |
+| :--- | :--- |
 | `npm run dev` | Vite dev server |
 | `npm run build` | Production build (Nitro output) |
 | `npm run preview` | Preview the built server |
@@ -158,19 +172,21 @@ Secrets belong in `.env` (ignored by git) or in your host’s environment settin
 | `npm run test` | Vitest |
 | `npm run db:bootstrap` | Local database bootstrap |
 
----
+<img src="./assets/readme-divider.svg" alt="" width="100%" />
 
 ## Design language
 
-The interface borrows the hospital’s own identity — the cross-and-continent mark, the deep `#102a43` navy, the `#159ed5` cyan — and pushes it forward: neon ECG traces, glassy ticket cards, a live board that feels closer to a mission-control wall than a waiting-room sign.
+> **The neon is the interface. The trail is the truth.**
+>
+> The interface borrows the hospital’s own identity — the cross-and-continent mark, the deep `#102a43` navy, the `#159ed5` cyan — and pushes it forward: neon ECG traces, glassy ticket cards, a live board that feels closer to a mission-control wall than a waiting-room sign.
 
 Small details matter here:
 
-- The landing page carries the hospital’s floating **Feedback** and **Email** pills, with the same gradient, expansion and easing as kijabehospital.or.ke.
+- The landing page carries the hospital’s floating **Feedback** and **Email** pills, with the same gradient, expansion and easing as [kijabehospital.or.ke](https://kijabehospital.or.ke).
 - Footer social links idle in a single uniform navy and only ignite to their brand color on hover, with a sticky zoom and a one-shot 3D flip.
 - Motion is decorative, never load-bearing: everything degrades under `prefers-reduced-motion`.
 
----
+<img src="./assets/readme-divider.svg" alt="" width="100%" />
 
 ## Privacy posture
 
@@ -179,15 +195,14 @@ Small details matter here:
 - AI prompts and API keys live server-side, behind staff authentication.
 - Every queue transition writes an audit event; the audit trail holds no patient details.
 
----
+<img src="./assets/readme-divider.svg" alt="" width="100%" />
 
 ## Deploy
 
-### Render
-
 `render.yaml` provisions the Node web service. The database lives on [Neon](https://neon.tech) free Postgres, because Render's free PostgreSQL expires 30 days after creation.
 
-**Dashboard:**
+<details open>
+<summary><strong>Render — dashboard walkthrough</strong></summary>
 
 1. **Neon:** create a project in an EU region, then copy the **pooled** connection string (the host contains `-pooler`) — Render cannot reach Neon's IPv6-only direct host. It already ends in `?sslmode=require`.
 2. **Provision the schema once**, from the repo on your machine:
@@ -199,16 +214,16 @@ Small details matter here:
 4. Fill the values marked `sync: false`: `DATABASE_URL` (the Neon pooled URL), `GEMINI_API_KEY`, the M-Pesa credentials, `MPESA_CALLBACK_URL`, `VITE_PUBLIC_APP_URL` and `PUBLIC_APP_URL` (use `https://kijabe-careflow-queue.onrender.com`).
 5. Redeploy after the first successful boot so ticket QRs pick up the final public URL.
 
-Free instance types do not support pre-deploy commands, which is why step 2 runs from your machine; re-run it after pulling new migrations. Free web services also sleep after 15 minutes idle — keep the kiosk awake with a free uptime pinger, or move to the Starter instance for production.
+</details>
 
-`VITE_PUBLIC_APP_URL` is baked in at build time — set it before the first deploy so ticket QR codes point at the public domain.
+> **Free tier reality check:** Free instance types do not support pre-deploy commands, which is why step 2 runs from your machine; re-run it after pulling new migrations. Free web services also sleep after 15 minutes idle — keep the kiosk awake with a free uptime pinger, or move to the Starter instance for production.
 
-Ticket QRs resolve at runtime through `/api/public/app-origin`: a public deployment always returns its own origin (or the public `VITE_PUBLIC_APP_URL`), never a LAN address, so a phone on mobile data can scan a printed ticket and land on `https://<your-domain>/ticket/<id>`.
+> `VITE_PUBLIC_APP_URL` is baked in at build time — set it before the first deploy so ticket QR codes point at the public domain. Ticket QRs resolve at runtime through `/api/public/app-origin`: a public deployment always returns its own origin (or the public `VITE_PUBLIC_APP_URL`), never a LAN address, so a phone on mobile data can scan a printed ticket and land on `https://<your-domain>/ticket/<id>`.
 
 ### Environment variables for hosting
 
 | Variable | Production value |
-| --- | --- |
+| :--- | :--- |
 | `DATABASE_URL` | Neon **pooled** PostgreSQL URL (`?sslmode=require`) |
 | `AUTH_SECRET` | Long random string, different from development |
 | `GEMINI_API_KEY` | Gemini key for advisors and announcements |
@@ -220,7 +235,8 @@ Ticket QRs resolve at runtime through `/api/public/app-origin`: a public deploym
 | `VITE_PUBLIC_APP_URL` | `https://<your-domain>` |
 | `PUBLIC_APP_URL` | `https://<your-domain>` |
 
-### Finishing M-Pesa for production
+<details>
+<summary><strong>Finishing M-Pesa for production</strong> — 5 steps</summary>
 
 1. Open the Daraja portal and confirm the app is a **production** app (sandbox keys are rejected by `api.safaricom.co.ke`).
 2. Copy the **Lipa na M-Pesa Online passkey** shown for shortcode `512900` — the sandbox test passkey will not authenticate a live paybill.
@@ -228,21 +244,24 @@ Ticket QRs resolve at runtime through `/api/public/app-origin`: a public deploym
 4. Set `MPESA_CALLBACK_URL` to the deployed domain. It must be public HTTPS and end in `/api/mpesa/callback`; Safaricom will not post to localhost. For local testing, expose the dev server through a tunnel and temporarily use that URL.
 5. Pay a small amount through the staff console, then confirm the ticket shows a receipt and `payments` reconciles via the callback.
 
-### Firebase Hosting
+</details>
 
-`kijabeoutflow.firebaseapp.com` is Firebase’s default domain, not a Node runtime — it cannot serve SSR routes or `/api/mpesa/callback` by itself. Use Cloud Functions/Cloud Run for the server, or point M-Pesa at the Render deployment.
+<details>
+<summary><strong>Firebase Hosting &amp; database notes</strong></summary>
 
-### Database
+**Firebase Hosting.** `kijabeoutflow.firebaseapp.com` is Firebase’s default domain, not a Node runtime — it cannot serve SSR routes or `/api/mpesa/callback` by itself. Use Cloud Functions/Cloud Run for the server, or point M-Pesa at the Render deployment.
 
-Either host needs a reachable PostgreSQL instance; `localhost` is not reachable from the cloud. Run `npm run db:bootstrap` against the hosted database, and confirm the `pg_cron` automation job is available (or drive `run_queue_automation()` from the display poller, which already wakes it).
+**Database.** Either host needs a reachable PostgreSQL instance; `localhost` is not reachable from the cloud. Run `npm run db:bootstrap` against the hosted database, and confirm the `pg_cron` automation job is available (or drive `run_queue_automation()` from the display poller, which already wakes it).
 
----
+</details>
+
+<img src="./assets/readme-divider.svg" alt="" width="100%" />
 
 ## License
 
 MIT — see [LICENSE](./LICENSE).
 
 <div align="center">
-  <sub>AIC Kijabe Hospital · Kijabe, Kiambu County, Kenya</sub><br/>
-  <sub><strong>Care Flow</strong> — the queue moves like a pulse.</sub>
+  <sub><strong>AIC Kijabe Hospital</strong> · Kijabe, Kiambu County, Kenya</sub><br/>
+  <sub><em>Care Flow</em> — the queue moves like a pulse.</sub>
 </div>

@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 64" width="1280" height="64" role="img" aria-label="Animated ECG divider">
+  <defs>
+    <linearGradient id="dline" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0c729c" stop-opacity="0"/>
+      <stop offset="0.18" stop-color="#0c729c" stop-opacity="0.55"/>
+      <stop offset="0.5" stop-color="#159ed5"/>
+      <stop offset="0.82" stop-color="#0c729c" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#0c729c" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="dglow" x="-40%" y="-120%" width="180%" height="340%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <path id="dpath" d="M0 32 H300 l14 0 10 -16 14 34 12 -18 18 0 H640 l14 0 10 -12 14 26 12 -14 18 0 H980 l14 0 10 -18 14 36 12 -18 18 0 H1280"/>
+    <style>
+      .pulse-line { stroke-dasharray: 120 1160; animation: glide 4.5s linear infinite; }
+      @keyframes glide { to { stroke-dashoffset: -1280; } }
+      @media (prefers-reduced-motion: reduce) { .pulse-line { animation: none; } }
+    </style>
+  </defs>
+  <use href="#dpath" fill="none" stroke="url(#dline)" stroke-width="1.6" opacity="0.7"/>
+  <use class="pulse-line" href="#dpath" fill="none" stroke="#1d93c4" stroke-width="2.4" filter="url(#dglow)"/>
+  <circle r="3" fill="#159ed5">
+    <animateMotion dur="4.5s" repeatCount="indefinite">
+      <mpath href="#dpath"/>
+    </animateMotion>
+  </circle>
+</svg>
