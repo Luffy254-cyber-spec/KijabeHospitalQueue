@@ -178,7 +178,7 @@ export async function webauthnRegisterVerify(
       ${credentialId},
       ${publicKey},
       ${credential.counter},
-      ${sql.array(transports.length ? transports : ["internal"])},
+      ${transports.length ? transports : ["internal"]},
       ${credentialDeviceType ?? null},
       ${!!credentialBackedUp},
       ${friendlyName?.trim() || "Device biometric"}
