@@ -62,6 +62,9 @@ const ALLOWED = new Set([
   "admin_ops_board",
   "admin_daily_stats",
   "admin_staff_timesheet",
+  "admin_run_nightly_archive",
+  "admin_list_data_exports",
+  "admin_get_data_export",
 ]);
 
 export const Route = createFileRoute("/api/local/rpc")({

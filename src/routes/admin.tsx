@@ -3,6 +3,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Shield, Users, DoorOpen, Bell, Download, LogOut, UserPlus, Check, X, Megaphone, Trash2, Moon, Plus, Eye, Clock,
+  Archive, RefreshCw,
 } from "lucide-react";
 import { PRIORITY_LABEL, PAYMENT_LABEL } from "@/lib/queue";
 import { supabase } from "@/integrations/supabase/client";
@@ -78,6 +79,16 @@ type TimesheetData = {
   to: string;
   generated_at: string;
   rows: TimesheetRow[];
+};
+
+type DataExportRow = {
+  id: string;
+  day: string;
+  period_start: string | null;
+  period_end: string | null;
+  ticket_count: number;
+  payment_count: number;
+  created_at: string;
 };
 
 function nairobiTime(iso: string | null | undefined) {
@@ -176,6 +187,9 @@ function AdminConsole({ email }: { email: string }) {
   const [timesheet, setTimesheet] = useState<TimesheetData | null>(null);
   const [sheetLoading, setSheetLoading] = useState(false);
   const [expandedSheet, setExpandedSheet] = useState<string | null>(null);
+  const [archives, setArchives] = useState<DataExportRow[]>([]);
+  const [archivesLoading, setArchivesLoading] = useState(false);
+  const [archiveBusy, setArchiveBusy] = useState(false);
 
   const load = useCallback(async () => {
     const [s, b, st, svc] = await Promise.all([
@@ -191,6 +205,18 @@ function AdminConsole({ email }: { email: string }) {
   }, [day]);
 
   useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t); }, [load]);
+
+  const loadArchives = useCallback(async () => {
+    setArchivesLoading(true);
+    const { data, error } = await supabase.rpc("admin_list_data_exports");
+    setArchivesLoading(false);
+    if (error) { toast.error(error.message); return; }
+    setArchives((data as unknown as DataExportRow[]) ?? []);
+  }, []);
+
+  useEffect(() => {
+    void loadArchives();
+  }, [loadArchives]);
 
   const loadTimesheet = useCallback(async () => {
     setSheetLoading(true);
@@ -359,6 +385,28 @@ function AdminConsole({ email }: { email: string }) {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const downloadArchive = async (id: string, kind: "visits" | "payments") => {
+    const { data, error } = await supabase.rpc("admin_get_data_export", { p_id: id });
+    if (error) { toast.error(error.message); return; }
+    const row = data as { day: string; visits_csv: string; payments_csv: string } | null;
+    const csv = kind === "visits" ? row?.visits_csv : row?.payments_csv;
+    if (!row || !csv) { toast.error("Nothing stored in that export"); return; }
+    downloadBlob(`kijabe-${kind}-${row.day}.csv`, csv);
+    toast.success("Export downloaded");
+  };
+
+  const runArchive = async () => {
+    if (!confirm("Export and delete every fully cleared visit from previous days? Waiting, called, in-room and pending-payment tickets are kept.")) return;
+    setArchiveBusy(true);
+    const { data, error } = await supabase.rpc("admin_run_nightly_archive");
+    setArchiveBusy(false);
+    if (error) { toast.error(error.message); return; }
+    const result = data as { tickets?: number; payments?: number } | null;
+    toast.success(`Archived ${result?.tickets ?? 0} visits and ${result?.payments ?? 0} payments`);
+    void loadArchives();
+    load();
   };
 
   const exportTimesheetDaily = () => {
@@ -996,6 +1044,62 @@ function AdminConsole({ email }: { email: string }) {
           </TabsContent>
 
           <TabsContent value="data" className="mt-4 space-y-4">
+            <div className="rounded-2xl border bg-card p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="max-w-2xl">
+                  <h3 className="flex items-center gap-2 font-bold"><Archive className="h-4 w-4" /> Nightly archive</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Every 00:00 (Nairobi) fully cleared visits and their payments are exported here first, then deleted.
+                    Waiting, called, in-room and pending-payment tickets are always kept.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => void loadArchives()} disabled={archivesLoading}>
+                    <RefreshCw className="h-4 w-4" /> Refresh
+                  </Button>
+                  <Button onClick={() => void runArchive()} disabled={archiveBusy}>
+                    <Archive className="h-4 w-4" /> {archiveBusy ? "Archiving…" : "Archive & clean now"}
+                  </Button>
+                </div>
+              </div>
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-left text-muted-foreground">
+                    <tr><th className="py-1">Run</th><th>Data range</th><th>Visits</th><th>Payments</th><th>Visit CSV</th><th>Payment CSV</th></tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {archives.map((e) => (
+                      <tr key={e.id}>
+                        <td className="py-1">{nairobiDate(e.created_at)} · {nairobiTime(e.created_at)}</td>
+                        <td>
+                          {e.period_start ? nairobiDate(e.period_start) : nairobiDate(e.day)}
+                          {e.period_end && e.period_end !== e.period_start ? ` → ${nairobiDate(e.period_end)}` : ""}
+                        </td>
+                        <td>{e.ticket_count}</td>
+                        <td>{e.payment_count}</td>
+                        <td>
+                          <Button size="sm" variant="outline" onClick={() => void downloadArchive(e.id, "visits")}>
+                            <Download className="h-3 w-3" /> CSV
+                          </Button>
+                        </td>
+                        <td>
+                          <Button size="sm" variant="outline" disabled={!e.payment_count} onClick={() => void downloadArchive(e.id, "payments")}>
+                            <Download className="h-3 w-3" /> CSV
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                    {!archives.length && (
+                      <tr>
+                        <td colSpan={6} className="py-6 text-center text-muted-foreground">
+                          {archivesLoading ? "Loading…" : "No nightly exports yet"}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
             <div className="flex flex-wrap items-end gap-3 rounded-2xl border bg-card p-4">
               <div>
                 <label className="text-xs font-semibold">Day (Nairobi)</label>
