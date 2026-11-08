@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 320" width="1280" height="320" role="img" aria-labelledby="et ed">
+  <title id="et">Animated atomic numbering</title>
+  <desc id="ed">Three clients — kiosk, display and staff console — pass through one locked counter, and three unique tokens come out the other side in order.</desc>
+
+  <defs>
+    <linearGradient id="epanel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#02121f"/>
+      <stop offset="1" stop-color="#08283f"/>
+    </linearGradient>
+    <linearGradient id="ebeam" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#159ed5" stop-opacity="0.1"/>
+      <stop offset="1" stop-color="#8be9ff" stop-opacity="0.95"/>
+    </linearGradient>
+    <radialGradient id="ecore" cx="0.35" cy="0.3" r="0.85">
+      <stop offset="0" stop-color="#1fb6ef"/>
+      <stop offset="1" stop-color="#093a58"/>
+    </radialGradient>
+    <filter id="eglow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="320" rx="18" fill="url(#epanel)"/>
+  <rect x="1" y="1" width="1278" height="318" rx="17" fill="none" stroke="#159ed5" stroke-opacity="0.18"/>
+
+  <!-- clients -->
+  <g font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif">
+    <rect x="40" y="46" width="200" height="52" rx="12" fill="#0a2136" stroke="#159ed5" stroke-opacity="0.4"/>
+    <text x="140" y="78" text-anchor="middle" font-size="14" font-weight="700" fill="#dcefff" letter-spacing="0.5">KIOSK</text>
+
+    <rect x="40" y="134" width="200" height="52" rx="12" fill="#0a2136" stroke="#159ed5" stroke-opacity="0.4"/>
+    <text x="140" y="166" text-anchor="middle" font-size="14" font-weight="700" fill="#dcefff" letter-spacing="0.5">DISPLAY</text>
+
+    <rect x="40" y="222" width="200" height="52" rx="12" fill="#0a2136" stroke="#159ed5" stroke-opacity="0.4"/>
+    <text x="140" y="254" text-anchor="middle" font-size="14" font-weight="700" fill="#dcefff" letter-spacing="0.5">STAFF</text>
+  </g>
+
+  <!-- converging beams -->
+  <g stroke="url(#ebeam)" stroke-width="2" fill="none">
+    <path d="M240 72 H400 Q470 72 470 150" stroke-dasharray="6 10">
+      <animate attributeName="stroke-dashoffset" values="0;-64" dur="1.6s" repeatCount="indefinite"/>
+    </path>
+    <path d="M240 160 H470" stroke-dasharray="6 10">
+      <animate attributeName="stroke-dashoffset" values="0;-64" dur="1.6s" repeatCount="indefinite"/>
+    </path>
+    <path d="M240 248 H400 Q470 248 470 170" stroke-dasharray="6 10">
+      <animate attributeName="stroke-dashoffset" values="0;-64" dur="1.6s" repeatCount="indefinite"/>
+    </path>
+  </g>
+
+  <!-- locked counter -->
+  <g>
+    <circle cx="540" cy="160" r="46" fill="url(#ecore)" stroke="#8be9ff" stroke-opacity="0.6" filter="url(#eglow)"/>
+    <circle cx="540" cy="160" r="46" fill="none" stroke="#8be9ff" stroke-width="1.5" opacity="0">
+      <animate attributeName="r" values="46;74" dur="3s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.8;0" dur="3s" repeatCount="indefinite"/>
+    </circle>
+    <!-- lock glyph -->
+    <rect x="527" y="160" width="26" height="20" rx="4" fill="none" stroke="#eaf7ff" stroke-width="2.4"/>
+    <path d="M532 160 v-6 a8 8 0 0 1 16 0 v6" fill="none" stroke="#eaf7ff" stroke-width="2.4"/>
+    <text x="540" y="232" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" fill="#8fb9d4">one counter row</text>
+    <text x="540" y="248" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" fill="#8fb9d4">daily_sequences</text>
+  </g>
+
+  <!-- outbound beams -->
+  <g stroke="url(#ebeam)" stroke-width="2" fill="none">
+    <path d="M600 130 Q660 130 700 100" stroke-dasharray="6 10">
+      <animate attributeName="stroke-dashoffset" values="0;-64" dur="1.6s" repeatCount="indefinite"/>
+    </path>
+    <path d="M618 160 H700" stroke-dasharray="6 10">
+      <animate attributeName="stroke-dashoffset" values="0;-64" dur="1.6s" repeatCount="indefinite"/>
+    </path>
+    <path d="M600 190 Q660 190 700 220" stroke-dasharray="6 10">
+      <animate attributeName="stroke-dashoffset" values="0;-64" dur="1.6s" repeatCount="indefinite"/>
+    </path>
+  </g>
+
+  <!-- three unique tokens, one after the other -->
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="18" font-weight="700" text-anchor="middle">
+    <g opacity="0">
+      <animate attributeName="opacity" values="0;1;1;0;0;0" keyTimes="0;0.08;0.3;0.38;0.9;1" dur="6s" repeatCount="indefinite"/>
+      <rect x="700" y="74" width="140" height="52" rx="12" fill="#0d3c5c" stroke="#60a5fa" stroke-opacity="0.6"/>
+      <text x="770" y="107" fill="#eaf7ff">TRI041</text>
+    </g>
+    <g opacity="0">
+      <animate attributeName="opacity" values="0;0;0;1;1;0;0" keyTimes="0;0.3;0.34;0.4;0.62;0.7;1" dur="6s" repeatCount="indefinite"/>
+      <rect x="700" y="134" width="140" height="52" rx="12" fill="#0d3c5c" stroke="#60a5fa" stroke-opacity="0.6"/>
+      <text x="770" y="167" fill="#eaf7ff">TRI042</text>
+    </g>
+    <g opacity="0">
+      <animate attributeName="opacity" values="0;0;0;0;0;1;1;0" keyTimes="0;0.62;0.66;0.7;0.74;0.8;0.94;1" dur="6s" repeatCount="indefinite"/>
+      <rect x="700" y="194" width="140" height="52" rx="12" fill="#0d3c5c" stroke="#60a5fa" stroke-opacity="0.6"/>
+      <text x="770" y="227" fill="#eaf7ff">TRI043</text>
+    </g>
+  </g>
+
+  <g font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" text-anchor="middle">
+    <text x="770" y="290" font-size="12" fill="#8fb9d4">no duplicate, no race</text>
+    <text x="1080" y="60" font-size="12" fill="#6f9ab5">same number never issued twice</text>
+    <text x="1080" y="82" font-size="12" fill="#6f9ab5">even when three screens ask at once</text>
+  </g>
+</svg>

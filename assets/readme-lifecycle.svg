@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 210" width="1280" height="210" role="img" aria-labelledby="lt ld">
+  <title id="lt">Animated ticket lifecycle</title>
+  <desc id="ld">A ticket chip steps through the states waiting, called, serving and done; a no-show branch peels off to the side, and an append-only audit row is written at every step.</desc>
+
+  <defs>
+    <linearGradient id="lpanel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#02121f"/>
+      <stop offset="1" stop-color="#08283f"/>
+    </linearGradient>
+    <linearGradient id="lchip" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#159ed5" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#0c729c" stop-opacity="0.9"/>
+    </linearGradient>
+    <filter id="lglow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="3" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="210" rx="18" fill="url(#lpanel)"/>
+  <rect x="1" y="1" width="1278" height="208" rx="17" fill="none" stroke="#159ed5" stroke-opacity="0.18"/>
+
+  <!-- ticket chip stepping across the rail -->
+  <g filter="url(#lglow)">
+    <rect x="-44" y="30" width="88" height="26" rx="13" fill="url(#lchip)"/>
+    <text x="0" y="48" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="13" font-weight="700" fill="#eaf7ff" letter-spacing="0.5">TRI042</text>
+    <animateMotion dur="12s" repeatCount="indefinite" path="M120 43 H1100" keyPoints="0;0.045;0.355;0.665;0.976;0.976" keyTimes="0;0.04;0.29;0.54;0.79;1" calcMode="discrete"/>
+  </g>
+
+  <!-- waiting -->
+  <g>
+    <rect x="24" y="78" width="280" height="58" rx="14" fill="#0a2136" stroke="#159ed5" stroke-opacity="0.35"/>
+    <rect x="24" y="78" width="280" height="58" rx="14" fill="#159ed5" opacity="0">
+      <animate attributeName="opacity" values="0.18;0.18;0;0;0;0;0;0" dur="12s" repeatCount="indefinite"/>
+    </rect>
+    <text x="164" y="104" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="700" fill="#eaf7ff" letter-spacing="0.6">WAITING</text>
+    <text x="164" y="124" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" fill="#8fb9d4">ranked by priority, then arrival</text>
+  </g>
+
+  <!-- called -->
+  <g>
+    <rect x="328" y="78" width="280" height="58" rx="14" fill="#0a2136" stroke="#159ed5" stroke-opacity="0.35"/>
+    <rect x="328" y="78" width="280" height="58" rx="14" fill="#159ed5" opacity="0">
+      <animate attributeName="opacity" values="0;0;0.18;0.18;0;0;0;0" dur="12s" repeatCount="indefinite"/>
+    </rect>
+    <text x="468" y="104" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="700" fill="#eaf7ff" letter-spacing="0.6">CALLED</text>
+    <text x="468" y="124" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" fill="#8fb9d4">chime twice, then read twice</text>
+  </g>
+
+  <!-- serving -->
+  <g>
+    <rect x="632" y="78" width="280" height="58" rx="14" fill="#0a2136" stroke="#159ed5" stroke-opacity="0.35"/>
+    <rect x="632" y="78" width="280" height="58" rx="14" fill="#159ed5" opacity="0">
+      <animate attributeName="opacity" values="0;0;0;0;0.18;0.18;0;0" dur="12s" repeatCount="indefinite"/>
+    </rect>
+    <text x="772" y="104" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="700" fill="#eaf7ff" letter-spacing="0.6">SERVING</text>
+    <text x="772" y="124" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" fill="#8fb9d4">in room with a clinician</text>
+  </g>
+
+  <!-- done -->
+  <g>
+    <rect x="936" y="78" width="280" height="58" rx="14" fill="#0a2136" stroke="#159ed5" stroke-opacity="0.35"/>
+    <rect x="936" y="78" width="280" height="58" rx="14" fill="#159ed5" opacity="0">
+      <animate attributeName="opacity" values="0;0;0;0;0;0;0.18;0.18" dur="12s" repeatCount="indefinite"/>
+    </rect>
+    <text x="1076" y="104" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="700" fill="#eaf7ff" letter-spacing="0.6">DONE</text>
+    <text x="1076" y="124" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" fill="#8fb9d4">archived at 00:00 EAT</text>
+  </g>
+
+  <!-- no-show branch -->
+  <g opacity="0.85">
+    <path d="M164 136 V166 H320" fill="none" stroke="#60a5fa" stroke-opacity="0.45" stroke-width="1.5" stroke-dasharray="4 6">
+      <animate attributeName="stroke-dashoffset" values="0;-20" dur="2s" repeatCount="indefinite"/>
+    </path>
+    <text x="330" y="171" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" fill="#8fb9d4">no-show · re-queued or closed by staff</text>
+  </g>
+
+  <text x="1240" y="171" text-anchor="end" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" fill="#6f9ab5">every step writes ticket_events</text>
+</svg>

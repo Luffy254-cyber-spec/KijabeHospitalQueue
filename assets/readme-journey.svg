@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 250" width="1280" height="250" role="img" aria-labelledby="jt jd">
+  <title id="jt">Animated patient journey</title>
+  <desc id="jd">A glowing token travels along a track through five stages: registration, kiosk check-in, the queue, the consulting desk and the pharmacy window.</desc>
+
+  <defs>
+    <linearGradient id="jpanel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#02121f"/>
+      <stop offset="1" stop-color="#08283f"/>
+    </linearGradient>
+    <linearGradient id="jtrack" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0c729c" stop-opacity="0.15"/>
+      <stop offset="0.5" stop-color="#159ed5" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#0c729c" stop-opacity="0.15"/>
+    </linearGradient>
+    <radialGradient id="jnode" cx="0.35" cy="0.3" r="0.8">
+      <stop offset="0" stop-color="#1aa8e0"/>
+      <stop offset="1" stop-color="#0a3550"/>
+    </radialGradient>
+    <filter id="jglow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge>
+        <feMergeNode in="b"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="250" rx="18" fill="url(#jpanel)"/>
+  <rect x="1" y="1" width="1278" height="248" rx="17" fill="none" stroke="#159ed5" stroke-opacity="0.18"/>
+
+  <path id="jrail" d="M100 128 H1180" stroke="url(#jtrack)" stroke-width="2" stroke-dasharray="5 9"/>
+  <path d="M100 128 H1180" stroke="#159ed5" stroke-opacity="0.12" stroke-width="10"/>
+
+  <!-- travelling token -->
+  <circle r="7" fill="#8be9ff" filter="url(#jglow)">
+    <animateMotion dur="10s" repeatCount="indefinite" path="M100 128 H1180"/>
+  </circle>
+  <circle r="13" fill="#8be9ff" opacity="0.18">
+    <animateMotion dur="10s" repeatCount="indefinite" path="M100 128 H1180"/>
+  </circle>
+
+  <!-- stage 1 -->
+  <g>
+    <circle cx="100" cy="128" r="24" fill="url(#jnode)" stroke="#8be9ff" stroke-opacity="0.5"/>
+    <circle cx="100" cy="128" r="24" fill="none" stroke="#8be9ff" stroke-width="1.5" opacity="0">
+      <animate attributeName="r" values="24;44" dur="10s" begin="0s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.75;0" dur="10s" begin="0s" repeatCount="indefinite"/>
+    </circle>
+    <text x="100" y="133" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="700" fill="#eaf7ff">01</text>
+    <text x="100" y="186" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="600" fill="#dcefff">Registration</text>
+    <text x="100" y="206" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" fill="#8fb9d4">name, phone, Kiswahili</text>
+  </g>
+
+  <!-- stage 2 -->
+  <g>
+    <circle cx="370" cy="128" r="24" fill="url(#jnode)" stroke="#8be9ff" stroke-opacity="0.5"/>
+    <circle cx="370" cy="128" r="24" fill="none" stroke="#8be9ff" stroke-width="1.5" opacity="0">
+      <animate attributeName="r" values="24;44" dur="10s" begin="2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.75;0" dur="10s" begin="2s" repeatCount="indefinite"/>
+    </circle>
+    <text x="370" y="133" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="700" fill="#eaf7ff">02</text>
+    <text x="370" y="186" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="600" fill="#dcefff">Kiosk check-in</text>
+    <text x="370" y="206" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" fill="#8fb9d4">one tap, phone QR</text>
+  </g>
+
+  <!-- stage 3 -->
+  <g>
+    <circle cx="640" cy="128" r="24" fill="url(#jnode)" stroke="#8be9ff" stroke-opacity="0.5"/>
+    <circle cx="640" cy="128" r="24" fill="none" stroke="#8be9ff" stroke-width="1.5" opacity="0">
+      <animate attributeName="r" values="24;44" dur="10s" begin="4s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.75;0" dur="10s" begin="4s" repeatCount="indefinite"/>
+    </circle>
+    <text x="640" y="133" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="700" fill="#eaf7ff">03</text>
+    <text x="640" y="186" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="600" fill="#dcefff">Queue</text>
+    <text x="640" y="206" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" fill="#8fb9d4">atomic token per desk</text>
+  </g>
+
+  <!-- stage 4 -->
+  <g>
+    <circle cx="910" cy="128" r="24" fill="url(#jnode)" stroke="#8be9ff" stroke-opacity="0.5"/>
+    <circle cx="910" cy="128" r="24" fill="none" stroke="#8be9ff" stroke-width="1.5" opacity="0">
+      <animate attributeName="r" values="24;44" dur="10s" begin="6s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.75;0" dur="10s" begin="6s" repeatCount="indefinite"/>
+    </circle>
+    <text x="910" y="133" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="700" fill="#eaf7ff">04</text>
+    <text x="910" y="186" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="600" fill="#dcefff">Consult desk</text>
+    <text x="910" y="206" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" fill="#8fb9d4">call, recall, transfer</text>
+  </g>
+
+  <!-- stage 5 -->
+  <g>
+    <circle cx="1180" cy="128" r="24" fill="url(#jnode)" stroke="#8be9ff" stroke-opacity="0.5"/>
+    <circle cx="1180" cy="128" r="24" fill="none" stroke="#8be9ff" stroke-width="1.5" opacity="0">
+      <animate attributeName="r" values="24;44" dur="10s" begin="8s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.75;0" dur="10s" begin="8s" repeatCount="indefinite"/>
+    </circle>
+    <text x="1180" y="133" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="700" fill="#eaf7ff">05</text>
+    <text x="1180" y="186" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="15" font-weight="600" fill="#dcefff">Pharmacy</text>
+    <text x="1180" y="206" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="12" fill="#8fb9d4">payment, collection</text>
+  </g>
+</svg>

@@ -27,7 +27,7 @@
   <em>“Health Care to God’s Glory.”</em>
 </p>
 
-**[The flow](#the-flow)** · **[Built for the floor](#built-for-the-floor-not-the-demo)** · **[The stack](#the-stack)** · **[Quick start](#quick-start)** · **[Design language](#design-language)** · **[Privacy](#privacy-posture)** · **[Deploy](#deploy)**
+**[The flow](#the-flow)** · **[Built for the floor](#built-for-the-floor-not-the-demo)** · **[The stack](#the-stack)** · **[Inside the engine](#inside-the-engine)** · **[Surfaces](#the-surfaces)** · **[Quick start](#quick-start)** · **[Design language](#design-language)** · **[Privacy](#privacy-posture)** · **[Security](#security-in-depth)** · **[Deploy](#deploy)** · **[Troubleshooting](#troubleshooting)**
 
 <img src="./assets/readme-divider.svg" alt="" width="100%" />
 
@@ -53,6 +53,10 @@ flowchart LR
 ```
 
 *Every state change is a database function with an audit row underneath it — the neon is the interface, the trail is the truth.*
+
+<img src="./assets/readme-journey.svg" alt="Animated patient journey: registration, kiosk check-in, queue, consult desk, pharmacy" width="100%" />
+
+*One token, five stages. The animation is decoration; the ticket is the contract.*
 
 <img src="./assets/readme-divider.svg" alt="" width="100%" />
 
@@ -83,6 +87,21 @@ flowchart LR
 ### The nightly archive
 
 At **00:00 Africa/Nairobi** the server exports every finished visit from previous days (`done`, `no_show`, `closed`) together with its payments to **Superadmin → Patients & export → Nightly archive**, then deletes those rows. Waiting, called, in-room and pending-payment tickets are never touched. The export is written in the same transaction before the delete, and a free Render instance that was asleep at midnight catches up on the first request after it wakes.
+
+### A ticket's life
+
+<img src="./assets/readme-lifecycle.svg" alt="Animated ticket lifecycle: waiting, called, serving, done, with a no-show branch" width="100%" />
+
+| State | Arrives from | What it means on the floor |
+| :--- | :--- | :--- |
+| `waiting` | registration, kiosk, transfer, no-show re-queue | In a department queue, ordered by priority and then arrival time |
+| `called` | `call_next` or `call_ticket` | Stamped `called_at`, chime plays twice, the token is read twice, the board flashes it |
+| `serving` | a staff action at the desk | The patient is in the room; a counter and clinician are attached |
+| `done` | a staff action | Leaves the queue and becomes eligible for the nightly export |
+| `no_show` | a staff action after a recall | Recorded honestly; staff can re-queue it or close it |
+| `closed` | automation, day close, nightly archive | Terminal state — the visit is finished |
+
+Nothing is ever edited in place. Each move inserts a `ticket_events` row, which is why the staff console can show a history and the auditor can replay a day.
 
 <img src="./assets/readme-divider.svg" alt="" width="100%" />
 
@@ -130,6 +149,99 @@ flowchart TB
 - **Gemini** — server-side queue advisor; keys never reach the browser.
 - **M-Pesa Daraja** — STK push and callback reconciliation.
 - **WebAuthn** — biometric work-ID sign-in for staff.
+
+### Inside the engine
+
+<img src="./assets/readme-engine.svg" alt="Animated atomic numbering: three clients pass through one locked counter and receive unique tokens" width="100%" />
+
+**Numbering cannot race.** `issue_ticket` reads and increments `daily_sequences` inside a security-definer function, so three screens asking at the same instant receive 041, 042 and 043 — never the same token twice, and never a silent gap. The number is per department per day, so a quiet clinic still starts at a small, readable token.
+
+**Fairness is a sort, not a promise.** A department's queue orders by priority first, then arrival. Triage colour is staff-side information; the public board stays neutral so nobody is alarmed by a red tile in the waiting room.
+
+**The verbs the floor actually calls**
+
+| Verb | Called by | Effect |
+| :--- | :--- | :--- |
+| `register_patient` / `issue_visit` | registration desk | Creates the patient record and the visit |
+| `queue_at_registration` / `queue_at_triage` | registration, triage | Places the visit in a department queue |
+| `issue_ticket` | kiosk | Allocates the next atomic token |
+| `call_next` / `call_ticket` | staff console | Moves the next patient, or a chosen one, to `called` |
+| `staff_action` | staff console | Recall, transfer, serve, complete, no-show |
+| `get_counter_queue` | staff console | The desk's own list, with the next patient always at the top |
+| `get_display_board` | TV / room display | Rooms, called tokens and waiting counts — no identifiers |
+| `get_ticket_status` / `get_patient_track` | phone pages | A patient's own ticket and visit progress |
+| `admin_observe_queue` / `admin_ops_board` | superadmin | Cross-department observation and daily stats |
+
+**Automation is bounded.** Each department owns a surge threshold; when the waiting count crosses it, `run_queue_automation` takes the configured action and writes an event. Every value is validated in SQL as well as in the UI, and a simulation mode lets an admin preview a threshold before saving it.
+
+**Why the big board can be trusted.** The display reads `get_display_board`, which returns only what belongs on a wall — tokens, room names, departments, counts. No names, no phone numbers, no clinical notes. If a screen is photographed, nothing private is in the frame.
+
+### The data model
+
+```mermaid
+erDiagram
+  PATIENTS ||--o{ TICKETS : "has visits"
+  SERVICES ||--o{ TICKETS : "queues"
+  COUNTERS ||--o{ TICKETS : "serves at"
+  TICKETS ||--o{ TICKET_EVENTS : "audit trail"
+  TICKETS ||--o{ PAYMENTS : "billed by"
+  SERVICES ||--o{ SERVICE_FEES : "priced by"
+  STAFF_PROFILES ||--o{ STAFF_ROOM_ASSIGNMENTS : "stationed at"
+  STAFF_PROFILES ||--o{ STAFF_WORK_SESSIONS : "clocks in"
+  STAFF_PROFILES ||--o{ STAFF_SUMMONS : "paged by"
+  SECURITY_THROTTLE ||--o{ SECURITY_EVENTS : "records"
+```
+
+| Table | Holds | Notes |
+| :--- | :--- | :--- |
+| `patients` | One row per person | Contact details stay server-side |
+| `tickets` | One row per visit | Token, status, department, priority, timestamps |
+| `ticket_events` | Append-only history | An event per transition; no patient details |
+| `services` | Departments | Queue label, prefix, surge threshold |
+| `counters` | Rooms and desks | Room name, service, active flag |
+| `daily_sequences` | Token counters | Incremented atomically per department per day |
+| `payments` | M-Pesa requests and receipts | `pending`, `paid`, `failed`, `cancelled` |
+| `service_fees` | Price list per service | Editable by admin only |
+| `insurance_providers` | Scheme list | Used by billing and registration |
+| `staff_profiles` | Staff identity and status | Approved, pending, suspended |
+| `staff_room_assignments` | Who is stationed where | Drives room occupancy |
+| `staff_work_sessions` | Check-in and check-out | Feeds the attendance timesheet |
+| `staff_summons` | Pages sent to a desk | Acknowledged by the staff member |
+| `staff_webauthn_credentials` | Passkeys per staff member | Public keys only |
+| `automation_settings` / `automation_state` | Thresholds and last runs | Validated in SQL |
+| `security_throttle` / `security_events` | Rate-limit buckets and hits | DB-backed, survives restarts |
+| `data_exports` | Nightly archive manifests | Written before deletion |
+
+<img src="./assets/readme-divider.svg" alt="" width="100%" />
+
+## The surfaces
+
+| Route | Who opens it | What it is for |
+| :--- | :--- | :--- |
+| `/` | Everyone | Landing page: what the queue is, install prompt, support pills |
+| `/staff` → Registration | Registration desk | New and returning patients, Kiswahili-first intake |
+| `/kiosk` | Patients, unattended | One-tap check-in that prints or shows a ticket with a QR |
+| `/staff` | Nurses, clinicians, cashiers | Role-aware console: call, recall, serve, transfer, complete, bill |
+| `/display` | Waiting room TV | The public board: now serving, waiting pairs, recently called |
+| `/admin` | Superadmin | Staff, rooms, services, fees, nightly archive, live observation |
+| `/automation` | Admin | Per-department surge thresholds and simulation |
+| `/ticket/<id>` | Patient phone | The ticket itself, with room and status |
+| `/track/<patientId>` | Patient phone | Visit progress across departments |
+| `/apply-db-fix` | Maintainer | A database setup reminder for self-hosting; holds no credentials |
+
+The server API behind those screens is deliberately small:
+
+| Endpoint | Purpose |
+| :--- | :--- |
+| `/api/public/queue-status` | The board's polling feed |
+| `/api/public/announce` | Gemini PA voice, rate-limited and allowlisted |
+| `/api/public/app-origin` | Origin resolver for ticket QRs, also the heartbeat target |
+| `/api/local/auth` | Sign-in, codes, reset, email change |
+| `/api/local/rpc` / `/api/local/query` | Authenticated RPC bridge (allowlisted) |
+| `/api/mpesa/stkpush` | Starts an STK push |
+| `/api/mpesa/status` | Polls a payment |
+| `/api/mpesa/callback` | Safaricom callback, shared-secret gated |
+
 
 <img src="./assets/readme-divider.svg" alt="" width="100%" />
 
@@ -199,6 +311,22 @@ Small details matter here:
 - Footer social links idle in a single uniform navy and only ignite to their brand color on hover, with a sticky zoom and a one-shot 3D flip.
 - Motion is decorative, never load-bearing: everything degrades under `prefers-reduced-motion`.
 
+### Resilience on a cheap host
+
+- **A screen never sleeps.** The Screen Wake Lock API keeps the TV and kiosk display awake; browsers without it fall back to a silent audio loop. No synthetic clicks are ever sent, so the staff idle sign-out still works.
+- **The host never cold-starts mid-queue.** Every open screen pings `/api/public/app-origin` on a 10-minute timer, which keeps a free Render instance inside its idle window and warms the queue API for the next patient.
+- **The music self-heals.** The shared player re-syncs to the current 15-minute slot after a suspended tab, a dropped connection or a host wake-up, and restarts a track that ends early instead of hammering the player.
+- **The board is read-only.** If the network blinks, the last painted board stays on screen and the next poll repaints it; nothing on the wall is lost.
+- **Installs like an app.** A service worker and manifest make the kiosk and display installable, and they open in their own standalone window.
+
+### Accessibility and the waiting room
+
+- Every surface is bilingual where it matters: English and Kiswahili sit side by side, and new-patient intake leads with Kiswahili.
+- The TV board uses type and contrast sized for reading across a ward, with redundant cues — token, room and status — so colour is never the only signal.
+- Announcements are spoken slowly, with the token spelled digit by digit, and the PA ducks the music rather than talking over it.
+- Chimes are deliberately gentle: sine and triangle tones, soft attack, long decay, peaking well below medical-equipment alarms.
+- Focus rings, keyboard paths and `aria` labels are present on every interactive control, and motion respects `prefers-reduced-motion`.
+
 <img src="./assets/readme-divider.svg" alt="" width="100%" />
 
 ## Privacy posture
@@ -207,6 +335,25 @@ Small details matter here:
 - Staff actions require a role row; open sign-up grants nothing.
 - AI prompts and API keys live server-side, behind staff authentication.
 - Every queue transition writes an audit event; the audit trail holds no patient details.
+
+### Security in depth
+
+| Layer | What it does |
+| :--- | :--- |
+| **Row-level security** | Every table is guarded; an anonymous caller can only reach the handful of functions exposed to the kiosk and the board |
+| **Security-definer functions** | Queue maths, numbering and role checks run in SQL, so a modified browser cannot skip a rule |
+| **Role rows, not just logins** | A verified email grants nothing until a `user_roles` row exists; `superadmin` is a separate, explicit grant |
+| **Work-ID login** | Staff sign in with a hashed work ID plus password or a WebAuthn passkey; the raw ID is never stored |
+| **Brute-force throttling** | DB-backed buckets per IP and per account: sign-in allows 5 attempts per 10 minutes per account, then blocks for 15 minutes |
+| **Turnstile** | Optional Cloudflare challenge on public forms; skipped cleanly when the keys are absent |
+| **Rate-limited PA** | `/api/public/announce` is capped per caller because the Gemini key behind it is metered |
+| **Callback secret** | M-Pesa callbacks must carry the shared token or they are rejected outright |
+| **Security headers** | CSP, `nosniff`, `SAMEORIGIN`, strict referrer policy, a closed permissions policy, and HSTS on HTTPS |
+| **RPC allowlist** | The authenticated bridge will only call named functions — no arbitrary SQL and no table access from the client |
+| **APPEND-ONLY audit** | Staff can read `ticket_events`, never rewrite it; the nightly export is taken before any deletion |
+| **Secrets stay server-side** | Gemini, M-Pesa and database credentials never enter a client bundle or a commit |
+
+> Throttle hits are recorded in `security_events`; the tables survive restarts and deploys, so a blocked attacker stays blocked.
 
 <img src="./assets/readme-divider.svg" alt="" width="100%" />
 
@@ -272,6 +419,43 @@ Small details matter here:
 **Database.** Either host needs a reachable PostgreSQL instance; `localhost` is not reachable from the cloud. Apply the migrations to the hosted database from your machine, and confirm the scheduled automation job is available in your provider (or drive `run_queue_automation()` from the display poller, which already wakes it).
 
 </details>
+
+<img src="./assets/readme-divider.svg" alt="" width="100%" />
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+| :--- | :--- | :--- |
+| Sign-in refuses with “too many attempts” | The throttle bucket is still blocked | Wait out the 15-minute block; check `security_events` for the subject |
+| Staff member signs in but sees an empty console | No `user_roles` row yet | Superadmin → Staff → grant the role, then approve the profile |
+| Ticket numbers restart at 001 | New day in Africa/Nairobi, or the wrong service | Numbers are per department per day by design |
+| Kiosk prints a LAN address in the QR | `VITE_PUBLIC_APP_URL` is missing at build time | Set it and redeploy; the value is baked into the build |
+| Display shows “No rooms open yet” | No active counters for that service | Admin → Rooms → activate the room |
+| Announcements fall back to a robotic voice | Gemini TTS quota is exhausted or the key is unset | The browser voice is the designed fallback; top up or wait for the daily reset |
+| Sound button shows “Enable sound” after every reload | The browser blocked autoplay before a gesture | One tap enables it for the whole browser profile |
+| Payments stay `pending` | The callback never reached the server | Confirm the public URL ends in `/api/mpesa/callback` and carries the secret |
+| Nightly archive is empty | Nothing finished on the previous day | The panel only lists days that actually had finished visits |
+| Free instance feels slow on the first request | It was asleep | Any open screen now keeps it warm; check the tab is actually open |
+
+## FAQ
+
+**Is a ticket the same as a patient?**
+No. A patient is a person; a ticket is one visit. The same patient can hold several tickets over time, and the audit trail keeps them apart.
+
+**Can staff see a patient's phone number on the board?**
+No. The board only receives tokens, rooms, departments and counts.
+
+**What happens if two desks call the same number?**
+They cannot. Calling is a database transition guarded by the ticket's current state, so the second call lands on a ticket that is no longer waiting.
+
+**Why is the music the same on every screen?**
+Because it is derived from the clock, not stored per browser. Two screens opened minutes apart land on the same song and the same second.
+
+**Does the music keep the server awake?**
+No — audio is entirely client-side. A separate 10-minute heartbeat from any open screen does that, and it also warms the API.
+
+**Where do exports live?**
+In `data_exports` as manifests written inside the same transaction that deletes the finished rows; download them from **Superadmin → Patients & export**.
 
 <img src="./assets/readme-divider.svg" alt="" width="100%" />
 
