@@ -11,7 +11,16 @@ import {
   sendStaffConfirmEmail,
 } from "@/lib/firebase-mail.server";
 
-const SECRET = () => process.env["AUTH_SECRET"] || "kijabe-local-dev-secret-change-me";
+// Session tokens are HMAC-signed: a guessable secret lets anyone forge a login,
+// so production refuses to start signing with the development fallback.
+const SECRET = () => {
+  const value = (process.env["AUTH_SECRET"] || "").trim();
+  if (value.length >= 32) return value;
+  if (process.env["NODE_ENV"] === "production" || process.env["APP_ENV"] === "production") {
+    throw new Error("AUTH_SECRET must be set to at least 32 characters in production");
+  }
+  return "kijabe-local-dev-secret-change-me";
+};
 
 export type SessionUser = { id: string; email: string; roles?: string[] };
 
@@ -208,7 +217,9 @@ export async function requestLoginCode(email: string, password: string, origin: 
     needsCode: true as const,
     email: row.email,
     pending: sent.pending,
-    code: sent.code,
+    // Only surfaced when mail actually failed (offline/kiosk fallback); never
+    // hand the one-time code back while it is also sitting in the inbox.
+    code: sent.mailFailed ? sent.code : undefined,
     mailFailed: sent.mailFailed,
   };
 }
@@ -402,7 +413,11 @@ export async function requestPasswordReset(email: string, origin: string) {
     where id = ${row.id}::uuid
   `;
   const sent = await sendPasswordResetCode(String(row.email), code, `${origin}/staff/code?purpose=reset`);
-  return { email: String(row.email), code: sent.code, mailFailed: !!sent.mailFailed };
+  return {
+    email: String(row.email),
+    code: sent.mailFailed ? sent.code : undefined,
+    mailFailed: !!sent.mailFailed,
+  };
 }
 
 export async function verifyPasswordResetCode(email: string, code: string) {
@@ -486,7 +501,11 @@ export async function requestEmailChangeCode(email: string, origin: string) {
     where id = ${row.id}::uuid
   `;
   const sent = await sendEmailChangeCode(String(row.email), code, `${origin}/staff/code?purpose=change-email`);
-  return { email: String(row.email), code: sent.code, mailFailed: !!sent.mailFailed };
+  return {
+    email: String(row.email),
+    code: sent.mailFailed ? sent.code : undefined,
+    mailFailed: !!sent.mailFailed,
+  };
 }
 
 export async function verifyEmailChangeCode(email: string, code: string) {

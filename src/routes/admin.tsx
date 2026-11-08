@@ -359,12 +359,19 @@ function AdminConsole({ email }: { email: string }) {
     if (!stats?.visits?.length) { toast.error("No visits to export for this day"); return; }
     const headers = ["token","hospital_no","patient_name","service","status","triage","priority_reasons","payment","care_path","created_at"];
     const lines = [headers.join(",")];
+    // Quote and neutralise spreadsheet formulas (=, +, -, @) so an exported
+    // name or note cannot execute when the file is opened in Excel.
+    const cell = (value: unknown) => {
+      let text = value == null ? "" : String(value);
+      if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
+      return `"${text.replace(/"/g, '""')}"`;
+    };
     for (const v of stats.visits) {
       const row = [
         v.token, v.hospital_no || "", v.patient_name || "", v.service, v.status, v.triage_level,
-        (v.triage_note || "").replace(/"/g, '""'), v.payment,
+        v.triage_note || "", v.payment,
         (v.care_path || []).join(">"), v.created_at,
-      ].map((c) => `"${c}"`);
+      ].map(cell);
       lines.push(row.join(","));
     }
     const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });

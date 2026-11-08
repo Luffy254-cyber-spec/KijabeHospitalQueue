@@ -1,17 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { sql } from "@/lib/db.server";
-
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
+import { corsHeaders } from "@/lib/http-security";
 
 export const Route = createFileRoute("/api/public/queue-status")({
   server: {
     handlers: {
-      OPTIONS: async () => new Response(null, { status: 204, headers: cors }),
-      GET: async () => {
+      OPTIONS: async ({ request }) => new Response(null, { status: 204, headers: corsHeaders(request) }),
+      GET: async ({ request }) => {
+        const cors = corsHeaders(request);
         try {
           const rows = await sql`select public.get_display_board() as board`;
           const data = rows[0]?.board ?? {};

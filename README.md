@@ -147,7 +147,9 @@ npm run dev                 # http://localhost:8080
 | Variable | Purpose | Notes |
 | :--- | :--- | :--- |
 | `DATABASE_URL` | PostgreSQL connection string | Local `kijabe_care_flow` database by default |
-| `AUTH_SECRET` | Signs local staff session tokens | Replace the development value before deploying |
+| `AUTH_SECRET` | Signs local staff session tokens and hashes throttling subjects | At least 32 characters; the server refuses to boot with a shorter value in production |
+| `MPESA_CALLBACK_SECRET` | Shared token appended to the Daraja callback URL | Added automatically as `?token=…`; callbacks that do not carry it are rejected |
+| `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile widget and server check | Optional — leave both blank to hide the widget and skip verification |
 | `GEMINI_API_KEY` | Queue advisor + announcements | Server-only; never expose to the client |
 | `MPESA_ENV` | `sandbox` or `production` | Selects the Daraja host |
 | `MPESA_SHORTCODE` | Paybill / till number | — |
@@ -229,7 +231,9 @@ Small details matter here:
 | Variable | Production value |
 | :--- | :--- |
 | `DATABASE_URL` | Neon **pooled** PostgreSQL URL (`?sslmode=require`) |
-| `AUTH_SECRET` | Long random string, different from development |
+| `AUTH_SECRET` | 32+ random characters, different from development — sign-in and throttling both depend on it |
+| `MPESA_CALLBACK_SECRET` | Long random string; it is appended to the Daraja callback URL as `?token=…`, so keep `MPESA_CALLBACK_URL` free of a query string |
+| `TURNSTILE_SITE_KEY` / `TURNSTILE_SECRET_KEY` | From the Cloudflare Turnstile widget; leave blank to keep the challenge disabled |
 | `GEMINI_API_KEY` | Gemini key for advisors and announcements |
 | `MPESA_ENV` | `production` for paybill 512900 |
 | `MPESA_SHORTCODE` | `512900` |

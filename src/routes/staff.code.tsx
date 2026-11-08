@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { StaffOceanScene } from "@/components/staff-ocean-scene";
-import { HopeMusic } from "@/components/hope-music";
+import { ambientEnabled, setAmbientEnabled, startAmbient, subscribeAmbient } from "@/lib/ambient-music";
 import { MoonPhaseLive } from "@/lib/moon-phase";
 
 const PENDING_KEY = "kh-login-pending";
@@ -70,8 +70,10 @@ function StaffCodePage() {
   const [now, setNow] = useState(() => Date.now());
   const [sound, setSound] = useState(() => {
     if (typeof window === "undefined") return false;
-    return localStorage.getItem("kh-staff-login-sound") === "1";
+    return ambientEnabled();
   });
+
+  useEffect(() => subscribeAmbient(() => setSound(ambientEnabled())), []);
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
   const pending = email ? readPending(email) : null;
   const sentAt = pending?.sentAt ?? Date.now();
@@ -104,12 +106,11 @@ function StaffCodePage() {
 
   const enableSound = () => {
     setSound(true);
-    localStorage.setItem("kh-staff-login-sound", "1");
-    window.dispatchEvent(new Event("kh-hope-unlock"));
+    startAmbient();
   };
   const disableSound = () => {
     setSound(false);
-    localStorage.setItem("kh-staff-login-sound", "0");
+    setAmbientEnabled(false);
   };
 
   const confirm = useCallback(async (value: string) => {
@@ -352,7 +353,6 @@ function StaffCodePage() {
           </div>
         )}
       </form>
-      <HopeMusic active={sound} oceanOn={sound} />
     </StaffOceanScene>
   );
 }

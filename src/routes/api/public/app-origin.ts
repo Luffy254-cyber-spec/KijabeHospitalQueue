@@ -1,11 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import os from "node:os";
-
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
+import { corsHeaders } from "@/lib/http-security";
 
 function isPrivateHost(host: string): boolean {
   const h = host.replace(/^\[|\]$/g, "");
@@ -31,8 +26,9 @@ function lanIPv4(): string | null {
 export const Route = createFileRoute("/api/public/app-origin")({
   server: {
     handlers: {
-      OPTIONS: async () => new Response(null, { status: 204, headers: cors }),
+      OPTIONS: async ({ request }) => new Response(null, { status: 204, headers: corsHeaders(request) }),
       GET: async ({ request }) => {
+        const cors = corsHeaders(request);
         const url = new URL(request.url);
         const requestIsPrivate = isPrivateHost(url.hostname);
         const env = process.env["VITE_PUBLIC_APP_URL"]?.trim() || process.env["PUBLIC_APP_URL"]?.trim();

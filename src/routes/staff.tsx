@@ -14,12 +14,12 @@ import { suggestWorkflow } from "@/lib/advisor.functions";
 import { isLongWait, isSurge, sortQueue, formatWaitDuration, PRIORITY_LABEL, PAYMENT_LABEL, ACTION_LABEL, PRIORITY_CHANGE_REASONS, COVER_DESK_CODES, RELEASE_DESK_CODES, REASON_DESK_CODES } from "@/lib/queue";
 import { BillingPanel } from "@/components/billing-panel";
 import { StaffOceanScene } from "@/components/staff-ocean-scene";
-import { HopeMusic } from "@/components/hope-music";
+import { ambientEnabled, setAmbientEnabled, startAmbient, subscribeAmbient } from "@/lib/ambient-music";
 import { MoonPhaseLive } from "@/lib/moon-phase";
-import { speakHospitalToken } from "@/lib/announce";
 import { capitalizeName } from "@/lib/names";
 import { useIdleLogout } from "@/hooks/use-idle-logout";
 import { useBiometrics } from "@/hooks/use-biometrics";
+import { Turnstile } from "@/components/turnstile";
 import { checkBiometricEnrolled, enrollBiometrics, signInWithBiometrics, signInWithBiometricsWorkId } from "@/lib/biometrics";
 
 const LOGIN_PENDING_KEY = "kh-login-pending";
@@ -76,8 +76,11 @@ function Login() {
   const [bioEnrolled, setBioEnrolled] = useState(false);
   const [sound, setSound] = useState(() => {
     if (typeof window === "undefined") return false;
-    return localStorage.getItem("kh-staff-login-sound") === "1";
+    return ambientEnabled();
   });
+  const [turnstileToken, setTurnstileToken] = useState("");
+
+  useEffect(() => subscribeAmbient(() => setSound(ambientEnabled())), []);
 
   useEffect(() => {
     if (!biometrics.active) {
@@ -101,14 +104,12 @@ function Login() {
 
   const enableSound = () => {
     setSound(true);
-    localStorage.setItem("kh-staff-login-sound", "1");
-    // Same gesture unlocks YouTube autoplay as on the display board
-    window.dispatchEvent(new Event("kh-hope-unlock"));
+    startAmbient();
   };
 
   const disableSound = () => {
     setSound(false);
-    localStorage.setItem("kh-staff-login-sound", "0");
+    setAmbientEnabled(false);
   };
 
   const tryEnrollAfterAuth = async (accessToken: string) => {
@@ -189,6 +190,7 @@ function Login() {
           lastName: lastName.trim() || undefined,
           surname: surname.trim() || undefined,
           phone: phone.length === 9 ? `+254${phone}` : undefined,
+          turnstileToken,
         }) as Awaited<ReturnType<typeof supabase.auth.signUp>> & {
           needsConfirmation?: boolean;
           awaitingApproval?: boolean;
@@ -236,7 +238,7 @@ function Login() {
         }
         return;
       }
-      const res = await supabase.auth.signInWithPassword({ email, password }) as Awaited<
+      const res = await supabase.auth.signInWithPassword({ email, password, turnstileToken }) as Awaited<
         ReturnType<typeof supabase.auth.signInWithPassword>
       > & { needsCode?: boolean; code?: string; email?: string; mailFailed?: boolean };
       if (res.error) toast.error(res.error.message);
@@ -509,9 +511,12 @@ function Login() {
         )}
 
         {(mode === "up" || loginMode === "email") && (
-          <Button className="mt-5 w-full" disabled={busy || bioBusy || (mode === "up" && firstName.trim().length < 2)}>
-            {busy ? "Please wait…" : mode === "in" ? "Send verification code" : "Create account"}
-          </Button>
+          <>
+            <Turnstile onToken={setTurnstileToken} className="mt-4" />
+            <Button className="mt-4 w-full" disabled={busy || bioBusy || (mode === "up" && firstName.trim().length < 2)}>
+              {busy ? "Please wait…" : mode === "in" ? "Send verification code" : "Create account"}
+            </Button>
+          </>
         )}
         <button
           type="button"
@@ -530,7 +535,6 @@ function Login() {
         <Link to="/admin" className="mt-1 block text-center text-sm underline">Superadmin command →</Link>
         <Link to="/" className="mt-2 block text-center text-sm underline">← Home</Link>
       </form>
-      <HopeMusic active={sound} oceanOn={sound} />
     </StaffOceanScene>
   );
 }
@@ -797,7 +801,6 @@ function Console({ email, userId }: { email: string; userId: string }) {
     if (isSuperadmin) { toast.message("Observation only — management disabled"); return; }
     if (!current) return;
     const token = current.token;
-    const deskName = counter?.name ?? null;
     const args: { p_ticket: string; p_action: string; p_target_service?: string; p_note?: string } = {
       p_ticket: current.id,
       p_action: action,
@@ -808,8 +811,6 @@ function Console({ email, userId }: { email: string; userId: string }) {
     if (error) toast.error(error.message);
     else {
       if (action === "recall") {
-        // Re-announce so display hope music ducks until PA finishes (same as Call next)
-        speakHospitalToken(token, deskName);
         toast.success(`Recalling ${token}`);
       }
       if (action === "transfer") { toast.success(`${token} sent to ${serviceName(target!)}`); setTransferTo(""); }
@@ -841,10 +842,6 @@ function Console({ email, userId }: { email: string; userId: string }) {
     const { data, error } = await supabase.rpc("call_next", { p_counter: counter.id });
     if (error) toast.error(error.message);
     else if (!data) toast("No one waiting");
-    else {
-      const row = data as { token?: string };
-      if (row?.token) speakHospitalToken(row.token, counter.name);
-    }
     load();
   };
   const callTicket = async (ticketId: string, token: string) => {
@@ -854,7 +851,6 @@ function Console({ email, userId }: { email: string; userId: string }) {
     const { data, error } = await supabase.rpc("call_ticket", { p_counter: counter.id, p_ticket: ticketId });
     if (error) toast.error(error.message);
     else {
-      speakHospitalToken(token, counter.name);
       toast.success(`Calling ${token}`);
     }
     load();

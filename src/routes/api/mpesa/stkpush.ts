@@ -2,18 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { normalizeMpesaPhone, stkPush } from "@/lib/mpesa";
 import { withUser } from "@/lib/db.server";
 import { bearerUser } from "@/lib/local-auth.server";
-
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+import { corsHeaders } from "@/lib/http-security";
 
 export const Route = createFileRoute("/api/mpesa/stkpush")({
   server: {
     handlers: {
-      OPTIONS: async () => new Response(null, { status: 204, headers: cors }),
+      OPTIONS: async ({ request }) => new Response(null, { status: 204, headers: corsHeaders(request) }),
       POST: async ({ request }) => {
+        const cors = corsHeaders(request);
         try {
           const user = bearerUser(request);
           if (!user) return Response.json({ error: "Not signed in" }, { status: 401, headers: cors });

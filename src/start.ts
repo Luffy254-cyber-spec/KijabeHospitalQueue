@@ -1,7 +1,24 @@
 import { createStart, createCsrfMiddleware, createMiddleware } from "@tanstack/react-start";
 
 import { renderErrorPage } from "./lib/error-page";
+import { securityHeaders } from "./lib/http-security";
 import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
+
+/** Adds CSP/HSTS/frame/referrer hardening to every HTML, API and asset response. */
+const securityMiddleware = createMiddleware().server(async ({ next }) => {
+  const result = await next();
+  const response = result.response;
+  const headers = new Headers(response.headers);
+  for (const [key, value] of Object.entries(securityHeaders())) headers.set(key, value);
+  return {
+    ...result,
+    response: new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    }),
+  };
+});
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
@@ -27,5 +44,5 @@ const csrfMiddleware = createCsrfMiddleware({
 
 export const startInstance = createStart(() => ({
   functionMiddleware: [attachSupabaseAuth],
-  requestMiddleware: [errorMiddleware, csrfMiddleware],
+  requestMiddleware: [securityMiddleware, errorMiddleware, csrfMiddleware],
 }));

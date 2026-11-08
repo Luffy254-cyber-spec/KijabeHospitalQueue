@@ -24,7 +24,8 @@ function reflectPolyfillFirst() {
 }
 
 export default defineConfig(({ command, mode }) => {
-  const loadedEnv = loadEnv(mode, process.cwd(), "VITE_");
+  // Only the public Turnstile site key is extra; everything else stays VITE_.
+  const loadedEnv = loadEnv(mode, process.cwd(), ["VITE_", "TURNSTILE_SITE_KEY"]);
   const define = Object.fromEntries(
     Object.entries(loadedEnv).map(([key, value]) => [`import.meta.env.${key}`, JSON.stringify(value)]),
   );

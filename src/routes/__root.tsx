@@ -11,9 +11,11 @@ import {
 import { useEffect, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { NavProgress, PageTransition } from "@/components/page-transition";
+import { AmbientMusic } from "@/components/hope-music";
 
 import appCss from "../styles.css?url";
 import { registerPwa } from "@/lib/pwa";
+import { useKeepAwake } from "@/lib/keep-awake";
 
 function NotFoundComponent() {
   return (
@@ -136,6 +138,7 @@ function RootComponent() {
   useEffect(() => {
     registerPwa();
   }, []);
+  useKeepAwake();
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -144,6 +147,8 @@ function RootComponent() {
       <PageTransition>
         <Outlet />
       </PageTransition>
+      {/* Outside PageTransition so the shared song never restarts on navigation. */}
+      <AmbientMusic />
       <Toaster richColors position="top-center" closeButton duration={4500} />
     </QueryClientProvider>
   );

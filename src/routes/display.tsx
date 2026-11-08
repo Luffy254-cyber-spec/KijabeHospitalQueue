@@ -2,9 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Volume2, VolumeX } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { onAnnounceActive, speakHospitalToken, wasTokenAnnouncedRecently } from "@/lib/announce";
+import { onAnnounceActive, speakHospitalToken, stopAnnouncement, wasTokenAnnouncedRecently } from "@/lib/announce";
+import { CHIME_LABELS, currentChime, cycleChime, unlockChimes, type ChimeKind } from "@/lib/chimes";
 import { StaffOceanScene } from "@/components/staff-ocean-scene";
-import { HopeMusic } from "@/components/hope-music";
+import { ambientEnabled, setAmbientEnabled, startAmbient, subscribeAmbient } from "@/lib/ambient-music";
 
 export const Route = createFileRoute("/display")({
   head: () => ({
@@ -79,7 +80,7 @@ function Display() {
   const [board, setBoard] = useState<Board>({ called: [], queues: [], waiting_all: [], rooms: [] });
   const [sound, setSound] = useState(() => {
     if (typeof window === "undefined") return false;
-    return localStorage.getItem("kh-display-sound") === "1";
+    return ambientEnabled();
   });
   const [clock, setClock] = useState<Date | null>(null);
   const [flash, setFlash] = useState<Called | null>(null);
@@ -88,11 +89,18 @@ function Display() {
   const [waitIndex, setWaitIndex] = useState(0);
   const [pairIndex, setPairIndex] = useState(0);
   const [announceDuck, setAnnounceDuck] = useState(false);
+  const [chime, setChime] = useState<ChimeKind>(() =>
+    typeof window === "undefined" ? "classic" : currentChime(),
+  );
   const seen = useRef<Set<string> | null>(null);
   const readingLock = useRef(false);
   const pinnedReading = useRef<string | null>(null);
 
+  // Ducks the ocean bed while the PA speaks (the global music player ducks itself).
   useEffect(() => onAnnounceActive(setAnnounceDuck), []);
+
+  // The shared player can be toggled from any page or tab.
+  useEffect(() => subscribeAmbient(() => setSound(ambientEnabled())), []);
 
   const waitingQueues = useMemo(
     () => (board.queues ?? []).filter((q) => Number(q.waiting) > 0).sort((a, b) => b.waiting - a.waiting),
@@ -310,17 +318,15 @@ function Display() {
 
   const enableSound = () => {
     setSound(true);
-    localStorage.setItem("kh-display-sound", "1");
-    // Unlock hope YouTube first (same click stack) so the video autoplays when loaded
-    window.dispatchEvent(new Event("kh-hope-unlock"));
-    window.setTimeout(() => window.dispatchEvent(new Event("kh-hope-unlock")), 200);
+    startAmbient();
+    unlockChimes();
     speakHospitalToken("", null, { test: true });
   };
 
   const disableSound = () => {
     setSound(false);
-    localStorage.setItem("kh-display-sound", "0");
-    window.speechSynthesis?.cancel();
+    setAmbientEnabled(false);
+    stopAnnouncement();
   };
 
   const latest = reading || board.called[0] || null;
@@ -367,6 +373,14 @@ function Display() {
               </button>
             ) : (
               <>
+                <button
+                  type="button"
+                  className="tv-btn"
+                  onClick={() => setChime(cycleChime())}
+                  title="Change the alert chime"
+                >
+                  {CHIME_LABELS[chime]}
+                </button>
                 <button
                   type="button"
                   className="tv-btn"
@@ -551,7 +565,6 @@ function Display() {
         </section>
 
         <div className="tv-footer-safe" aria-hidden />
-        <HopeMusic active={sound} duck={announceDuck} oceanOn={sound} />
       </div>
     </StaffOceanScene>
   );

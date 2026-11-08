@@ -277,15 +277,22 @@ export function StaffOceanScene({
   useEffect(() => {
     if (!ambientActive) return;
     const resume = () => {
-      if (!ambient.current) {
-        ambient.current = new OceanAmbient();
-        if (calmAmbient) ambient.current.startCalm();
-        else ambient.current.start();
-        setAudioOn(true);
+      if (ambient.current) {
+        // A context created before the first gesture starts suspended.
+        ambient.current.resume();
+        return;
       }
+      ambient.current = new OceanAmbient();
+      if (calmAmbient) ambient.current.startCalm();
+      else ambient.current.start();
+      setAudioOn(true);
     };
     window.addEventListener("pointerdown", resume, { once: true });
-    return () => window.removeEventListener("pointerdown", resume);
+    window.addEventListener("keydown", resume, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", resume);
+      window.removeEventListener("keydown", resume);
+    };
   }, [ambientActive, calmAmbient]);
 
   const enableAudio = () => {

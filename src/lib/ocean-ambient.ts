@@ -33,7 +33,10 @@ export class OceanAmbient {
   }
 
   start() {
-    if (this.enabled) return;
+    if (this.enabled) {
+      if (this.ctx) ctxResume(this.ctx);
+      return;
+    }
     const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     if (!AC) return;
     this.ctx = new AC();
@@ -45,6 +48,11 @@ export class OceanAmbient {
     this.ducked = false;
     this.startWind();
     this.scheduleLoop();
+  }
+
+  /** Browsers suspend audio until a gesture: resume without rebuilding the bed. */
+  resume() {
+    if (this.ctx) ctxResume(this.ctx);
   }
 
   /** Soft fade for ticket announcements — hope music pauses separately. */

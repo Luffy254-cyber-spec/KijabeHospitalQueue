@@ -1,10 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
+import { corsHeaders } from "@/lib/http-security";
+import { guardRate } from "@/lib/security.server";
 
 /** Gemini female voices: warm, gentle, then smooth. */
 const VOICES = ["Sulafat", "Vindemiatrix", "Despina"] as const;
@@ -56,8 +52,25 @@ async function geminiSpeech(text: string, voice: string, key: string): Promise<{
 export const Route = createFileRoute("/api/public/announce")({
   server: {
     handlers: {
-      OPTIONS: async () => new Response(null, { status: 204, headers: cors }),
+      OPTIONS: async ({ request }) => new Response(null, { status: 204, headers: corsHeaders(request) }),
       POST: async ({ request }) => {
+        const cors = corsHeaders(request);
+        try {
+          // The Gemini key behind this endpoint is metered: cap per caller.
+          await guardRate(
+            request,
+            "announce",
+            [],
+            { max: 60, windowSec: 600, blockSec: 600 },
+            { max: 60, windowSec: 600, blockSec: 600 },
+            "Too many announcements — wait a minute and try again.",
+          );
+        } catch (e) {
+          return Response.json(
+            { error: e instanceof Error ? e.message : "Too many announcements" },
+            { status: 429, headers: cors },
+          );
+        }
         const key = process.env.GEMINI_API_KEY?.trim() || process.env.GOOGLE_API_KEY?.trim();
         if (!key) {
           return Response.json({ error: "Set GEMINI_API_KEY to use the female Gemini voice." }, { status: 503, headers: cors });

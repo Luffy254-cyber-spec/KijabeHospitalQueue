@@ -1,4 +1,6 @@
-/** Hospital-style PA announcements — English only, ticket read twice. */
+/** Hospital-style PA announcements — English only, one ticket per call. */
+
+import { playChime } from "@/lib/chimes";
 
 const DIGIT: Record<string, string> = {
   "0": "zero",
@@ -41,34 +43,6 @@ function spellTokenEn(token: string): string {
     else if (/[A-Z]/.test(ch)) parts.push(ch);
   }
   return parts.join("… ");
-}
-
-/** Three soft beeps so the waiting room looks up before the call. */
-function playAttentionBeeps(): Promise<void> {
-  return new Promise((resolve) => {
-    try {
-      const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (!Ctx) { resolve(); return; }
-      const ctx = new Ctx();
-      void ctx.resume();
-      [0, 0.32, 0.64].forEach((t) => {
-        const o = ctx.createOscillator();
-        const g = ctx.createGain();
-        o.type = "sine";
-        o.frequency.value = 1046;
-        g.gain.setValueAtTime(0.0001, ctx.currentTime + t);
-        g.gain.exponentialRampToValueAtTime(0.1, ctx.currentTime + t + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.16);
-        o.connect(g);
-        g.connect(ctx.destination);
-        o.start(ctx.currentTime + t);
-        o.stop(ctx.currentTime + t + 0.18);
-      });
-      setTimeout(() => { ctx.close().catch(() => undefined); resolve(); }, 900);
-    } catch {
-      resolve();
-    }
-  });
 }
 
 function pickVoice(): SpeechSynthesisVoice | null {
@@ -187,30 +161,47 @@ export function wasTokenAnnouncedRecently(token: string, withinMs = 16000): bool
   }
 }
 
+/** Stop whatever is on air — used before a new call and when sound is muted. */
+export function stopAnnouncement() {
+  paId += 1;
+  if (currentAudio) {
+    try { currentAudio.pause(); } catch { /* ignore */ }
+    currentAudio = null;
+  }
+  window.speechSynthesis?.cancel();
+  setAnnounceActive(false);
+}
+
+/** One announcement at a time, so two tickets never talk over each other. */
+let paId = 0;
+let lastSpoken = { token: "", at: 0 };
+
 export function speakHospitalToken(token: string, counter: string | null, opts?: { test?: boolean }) {
   if (typeof window === "undefined") return;
   const dest = counter || "the counter";
   // Test with no token → TRI001 so at least two zeros are spoken
-  const enSpell = spellTokenEn(token || "TRI001");
+  const normalized = normalizeTicketToken(token || "TRI001");
+  const enSpell = spellTokenEn(normalized);
   const line = `Ticket number, ${enSpell}. Please proceed to ${dest}.`;
-  const text = token || opts?.test
-    ? `Attention please. ${line} Repeating. ${line}`
-    : "Announcements enabled.";
+  const text = token || opts?.test ? line : "Announcements enabled.";
 
-  markTokenAnnounced(token || "TRI001");
-
-  window.speechSynthesis?.cancel();
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio = null;
+  // A double-click or a second tab can fire the same ticket twice.
+  if (token || opts?.test) {
+    const now = Date.now();
+    const key = token ? normalized : "test";
+    if (lastSpoken.token === key && now - lastSpoken.at < (token ? 8000 : 2500)) return;
+    lastSpoken = { token: key, at: now };
   }
 
+  stopAnnouncement();
+  const id = ++paId;
+  markTokenAnnounced(normalized);
+
   const play = async () => {
-    setAnnounceActive(true);
     let cleared = false;
     let safety = 0;
     const clear = () => {
-      if (cleared) return;
+      if (cleared || id !== paId) return;
       cleared = true;
       if (safety) window.clearTimeout(safety);
       setAnnounceActive(false);
@@ -219,20 +210,30 @@ export function speakHospitalToken(token: string, counter: string | null, opts?:
       if (safety) window.clearTimeout(safety);
       safety = window.setTimeout(clear, ms);
     };
-    // Keep music paused until announcement finishes (long Gemini lines can exceed 20s)
+
+    setAnnounceActive(true);
+    // Long Gemini lines can exceed 20s, so keep music paused until it really ends.
     armSafety(90000);
-    if (!opts?.test) await playAttentionBeeps();
+
+    await playChime();
+    if (id !== paId) return;
+
     try {
       const res = await fetch("/api/public/announce", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text }),
       });
-      if (res.ok) {
+      if (id !== paId) return;
+      if (!res.ok) {
+        console.warn("Female Gemini voice unavailable", await res.text().catch(() => ""));
+      } else {
         const blob = await res.blob();
+        if (id !== paId) return;
         if (blob.size > 0 && (blob.type.startsWith("audio/") || blob.type === "application/octet-stream")) {
           const url = URL.createObjectURL(blob);
           const audio = new Audio(url);
+          audio.preload = "auto";
           currentAudio = audio;
           audio.onloadedmetadata = () => {
             if (Number.isFinite(audio.duration) && audio.duration > 0) {
@@ -244,20 +245,24 @@ export function speakHospitalToken(token: string, counter: string | null, opts?:
             clear();
           };
           audio.onerror = () => {
-            clear();
+            URL.revokeObjectURL(url);
           };
-          await audio.play();
-          return;
+          try {
+            await audio.play();
+            // The Gemini voice is on air — never start the browser voice too.
+            return;
+          } catch {
+            URL.revokeObjectURL(url);
+            if (currentAudio === audio) currentAudio = null;
+          }
         }
-      } else {
-        console.warn("Female Gemini voice unavailable", await res.text().catch(() => ""));
       }
     } catch (e) {
       console.warn("Announce request failed", e);
     }
-    speakBrowserFallback(text, () => {
-      clear();
-    });
+
+    if (id !== paId) return;
+    speakBrowserFallback(text, clear);
   };
   void play();
 }

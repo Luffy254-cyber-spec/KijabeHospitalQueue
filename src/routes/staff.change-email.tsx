@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StaffOceanScene } from "@/components/staff-ocean-scene";
+import { Turnstile } from "@/components/turnstile";
 
 const PENDING_KEY = "kh-login-pending";
 
@@ -29,13 +30,14 @@ function ChangeEmail() {
   const [newEmail, setNewEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [sentTo, setSentTo] = useState("");
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   const requestCode = async (e: React.FormEvent) => {
     e.preventDefault();
     if (busy) return;
     setBusy(true);
     try {
-      const res = await supabase.auth.requestEmailChangeCode(current);
+      const res = await supabase.auth.requestEmailChangeCode(current, turnstileToken);
       if (res.error) {
         toast.error(res.error.message);
         return;
@@ -178,7 +180,8 @@ function ChangeEmail() {
           required
           autoComplete="username"
         />
-        <Button className="mt-5 w-full" disabled={busy || !current.trim()}>
+        <Turnstile onToken={setTurnstileToken} className="mt-4" />
+        <Button className="mt-4 w-full" disabled={busy || !current.trim()}>
           {busy ? "Sending…" : "Send code"}
         </Button>
         <p className="mt-3 rounded-lg bg-black/10 px-3 py-2 text-xs leading-relaxed opacity-90">

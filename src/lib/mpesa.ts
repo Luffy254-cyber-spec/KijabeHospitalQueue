@@ -65,6 +65,17 @@ export type StkPushResult = {
   requestId?: string;
 };
 
+export function callbackSecret(): string {
+  return (process.env["MPESA_CALLBACK_SECRET"] || "").trim();
+}
+
+/** Safaricom calls back whatever URL we registered; carry a shared secret in it. */
+export function withCallbackToken(url: string): string {
+  const secret = callbackSecret();
+  if (!secret) return url;
+  return `${url}${url.includes("?") ? "&" : "?"}token=${encodeURIComponent(secret)}`;
+}
+
 export async function stkPush(opts: {
   phone: string;
   amount: number;
@@ -95,7 +106,7 @@ export async function stkPush(opts: {
     PartyA: phone,
     PartyB: SHORTCODE(),
     PhoneNumber: phone,
-    CallBackURL: callbackUrl,
+    CallBackURL: withCallbackToken(callbackUrl),
     AccountReference: (opts.accountRef || "Kijabe Hosp").slice(0, 12),
     TransactionDesc: (opts.description || "Medical fees").slice(0, 13),
   };
@@ -112,6 +123,37 @@ export async function stkPush(opts: {
   if (!res.ok) {
     throw new Error(data.errorMessage || data.ResponseDescription || "STK push failed");
   }
+  return data;
+}
+
+/** Ask Daraja for the authoritative result of a STK request (used to verify callbacks). */
+export async function stkQuery(checkoutRequestId: string): Promise<{
+  ResultCode?: number | string;
+  ResultDesc?: string;
+  errorMessage?: string;
+}> {
+  const timestamp = getTimestamp();
+  const password = getPassword(timestamp);
+  const token = await getAccessToken();
+  const res = await fetch(`${baseUrl()}/mpesa/stkpushquery/v1/query`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      BusinessShortCode: SHORTCODE(),
+      Password: password,
+      Timestamp: timestamp,
+      CheckoutRequestID: checkoutRequestId,
+    }),
+  });
+  const data = (await res.json()) as {
+    ResultCode?: number | string;
+    ResultDesc?: string;
+    errorMessage?: string;
+  };
+  if (!res.ok) throw new Error(data.errorMessage || "Daraja status query failed");
   return data;
 }
 

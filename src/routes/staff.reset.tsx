@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StaffOceanScene } from "@/components/staff-ocean-scene";
+import { Turnstile } from "@/components/turnstile";
 
 const PENDING_KEY = "kh-login-pending";
 
@@ -22,13 +23,14 @@ function ResetRequest() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (busy) return;
     setBusy(true);
     try {
-      const res = await supabase.auth.requestPasswordReset(email);
+      const res = await supabase.auth.requestPasswordReset(email, turnstileToken);
       if (res.error) {
         toast.error(res.error.message);
         return;
@@ -86,7 +88,8 @@ function ResetRequest() {
           autoComplete="username"
         />
 
-        <Button className="mt-5 w-full" disabled={busy || !email.trim()}>
+        <Turnstile onToken={setTurnstileToken} className="mt-4" />
+        <Button className="mt-4 w-full" disabled={busy || !email.trim()}>
           {busy ? "Sending…" : "Send reset code"}
         </Button>
 

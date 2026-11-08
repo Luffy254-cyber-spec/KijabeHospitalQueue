@@ -1,18 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { mpesaConfigPublic } from "@/lib/mpesa";
 import { sql } from "@/lib/db.server";
-
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+import { corsHeaders } from "@/lib/http-security";
 
 export const Route = createFileRoute("/api/mpesa/status")({
   server: {
     handlers: {
-      OPTIONS: async () => new Response(null, { status: 204, headers: cors }),
+      OPTIONS: async ({ request }) => new Response(null, { status: 204, headers: corsHeaders(request) }),
       GET: async ({ request }) => {
+        const cors = corsHeaders(request);
         try {
           const url = new URL(request.url);
           const ticketId = url.searchParams.get("ticketId");

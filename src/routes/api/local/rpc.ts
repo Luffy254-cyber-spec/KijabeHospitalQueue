@@ -1,12 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { withUser } from "@/lib/db.server";
 import { bearerUser } from "@/lib/local-auth.server";
+import { corsHeaders } from "@/lib/http-security";
 
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+const ARG_NAME = /^[a-z_][a-z0-9_]*$/i;
 
 const ALLOWED = new Set([
   "lookup_patient",
@@ -34,7 +31,6 @@ const ALLOWED = new Set([
   "get_fee_for_ticket",
   "get_payment_status",
   "record_payment_push",
-  "finalize_payment_callback",
   "confirm_cash_or_cover",
   "submit_feedback",
   "run_queue_automation",
@@ -70,8 +66,9 @@ const ALLOWED = new Set([
 export const Route = createFileRoute("/api/local/rpc")({
   server: {
     handlers: {
-      OPTIONS: async () => new Response(null, { status: 204, headers: cors }),
+      OPTIONS: async ({ request }) => new Response(null, { status: 204, headers: corsHeaders(request) }),
       POST: async ({ request }) => {
+        const cors = corsHeaders(request);
         try {
           const body = (await request.json()) as { fn?: string; args?: Record<string, unknown> };
           const fn = body.fn || "";
@@ -81,6 +78,12 @@ export const Route = createFileRoute("/api/local/rpc")({
           const user = bearerUser(request);
           const args = body.args || {};
           const keys = Object.keys(args);
+          // Argument names become SQL identifiers: reject anything that is not
+          // a plain lowercase name before it can reach the interpreter.
+          const badKey = keys.find((k) => !ARG_NAME.test(k));
+          if (badKey) {
+            return Response.json({ error: `Invalid argument name: ${badKey}` }, { status: 400, headers: cors });
+          }
           const data = await withUser(user?.id || null, user?.email || null, async (tx) => {
             if (keys.length === 0) {
               const rows = await tx.unsafe(`select public.${fn}() as result`);

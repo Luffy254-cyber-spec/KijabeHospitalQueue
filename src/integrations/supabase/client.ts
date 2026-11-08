@@ -133,10 +133,10 @@ export const supabase = {
       void this.getSession().then(({ data }) => cb("INITIAL_SESSION", data.session));
       return { data: { subscription: { unsubscribe: () => authListeners.delete(cb) } } };
     },
-    async signInWithPassword({ email, password }: { email: string; password: string }) {
+    async signInWithPassword({ email, password, turnstileToken }: { email: string; password: string; turnstileToken?: string }) {
       const { res, json } = await authFetch("/api/local/auth", {
         method: "POST",
-        body: JSON.stringify({ action: "signin", email, password }),
+        body: JSON.stringify({ action: "signin", email, password, turnstileToken }),
       });
       if (!res.ok) return { data: { session: null, user: null }, error: { message: json.error || "Sign in failed" } };
       // Superadmin/admin skip verification and receive a session immediately
@@ -169,10 +169,10 @@ export const supabase = {
       return { data: { session: json.session, user: json.session.user }, error: null };
     },
     /** Step 1 of a password reset: mail a 6-digit code (Firebase). */
-    async requestPasswordReset(email: string) {
+    async requestPasswordReset(email: string, turnstileToken?: string) {
       const { res, json } = await authFetch("/api/local/auth", {
         method: "POST",
-        body: JSON.stringify({ action: "reset-request", email }),
+        body: JSON.stringify({ action: "reset-request", email, turnstileToken }),
       });
       if (!res.ok) return { data: null, error: { message: json.error || "Could not send the reset code" } };
       return { data: json as { email: string; code?: string; mailFailed?: boolean }, error: null };
@@ -195,10 +195,10 @@ export const supabase = {
       return { data: json as { ok: boolean; email: string }, error: null };
     },
     /** Step 1 of an email change: mail a 6-digit code (Firebase). */
-    async requestEmailChangeCode(email: string) {
+    async requestEmailChangeCode(email: string, turnstileToken?: string) {
       const { res, json } = await authFetch("/api/local/auth", {
         method: "POST",
-        body: JSON.stringify({ action: "change-email-request", email }),
+        body: JSON.stringify({ action: "change-email-request", email, turnstileToken }),
       });
       if (!res.ok) return { data: null, error: { message: json.error || "Could not send the code" } };
       return { data: json as { email: string; code?: string; mailFailed?: boolean }, error: null };
@@ -237,16 +237,17 @@ export const supabase = {
       return { data: json as { workId: string; last4: string }, error: null };
     },
     async signUp({
-      email, password, firstName, lastName, surname, phone, options: _options,
+      email, password, firstName, lastName, surname, phone, options: _options, turnstileToken,
     }: {
       email: string; password: string; options?: unknown;
       firstName?: string; lastName?: string; surname?: string; phone?: string;
+      turnstileToken?: string;
     }) {
       const { res, json } = await authFetch("/api/local/auth", {
         method: "POST",
         body: JSON.stringify({
           action: "signup", email, password,
-          firstName, lastName, surname, phone,
+          firstName, lastName, surname, phone, turnstileToken,
         }),
       });
       if (!res.ok) return { data: { session: null, user: null }, error: { message: json.error || "Sign up failed" } };

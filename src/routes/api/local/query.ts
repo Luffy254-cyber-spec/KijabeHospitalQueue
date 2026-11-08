@@ -1,12 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { withUser } from "@/lib/db.server";
 import { bearerUser } from "@/lib/local-auth.server";
-
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+import { corsHeaders } from "@/lib/http-security";
 
 const ALLOWED_TABLES = new Set([
   "services",
@@ -19,6 +14,9 @@ const ALLOWED_TABLES = new Set([
   "service_fees",
   "feedback",
 ]);
+
+/** Patient, payment and audit tables must never be readable anonymously. */
+const STAFF_ONLY = new Set(["patients", "payments", "feedback", "ticket_events", "automation_settings"]);
 
 type Filter =
   | { type: "eq"; col: string; val: unknown }
@@ -34,8 +32,9 @@ function ident(name: string) {
 export const Route = createFileRoute("/api/local/query")({
   server: {
     handlers: {
-      OPTIONS: async () => new Response(null, { status: 204, headers: cors }),
+      OPTIONS: async ({ request }) => new Response(null, { status: 204, headers: corsHeaders(request) }),
       POST: async ({ request }) => {
+        const cors = corsHeaders(request);
         try {
           const body = (await request.json()) as {
             table?: string;
@@ -50,6 +49,12 @@ export const Route = createFileRoute("/api/local/query")({
             return Response.json({ error: { message: `Table not allowed: ${table}` } }, { status: 400, headers: cors });
           }
           const user = bearerUser(request);
+          if (STAFF_ONLY.has(table) && !user) {
+            return Response.json(
+              { data: null, error: { message: "Sign in as staff to read this table" } },
+              { status: 403, headers: cors },
+            );
+          }
           const cols =
             !body.select || body.select === "*"
               ? "*"

@@ -23,18 +23,31 @@ import { mailContinueOrigin } from "@/lib/mail-origin.server";
 // Reflect polyfill at import time — so load the polyfill first, then the lib.
 const loadWebauthn = () => import("@/lib/webauthn.server");
 import type { AuthenticationResponseJSON, RegistrationResponseJSON } from "@simplewebauthn/server";
+import { corsHeaders } from "@/lib/http-security";
+import {
+  RateLimitError,
+  clearRate,
+  guardRate,
+  verifyTurnstile,
+  type Limit,
+} from "@/lib/security.server";
 
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-};
+const IP_LIMIT: Limit = { max: 25, windowSec: 600, blockSec: 900 };
+const SUBJECT_LIMIT: Limit = { max: 5, windowSec: 600, blockSec: 900 };
+const CODE_IP_LIMIT: Limit = { max: 30, windowSec: 600, blockSec: 900 };
+const CODE_SUBJECT_LIMIT: Limit = { max: 6, windowSec: 600, blockSec: 900 };
+const MAIL_IP_LIMIT: Limit = { max: 10, windowSec: 1800, blockSec: 1800 };
+const MAIL_SUBJECT_LIMIT: Limit = { max: 5, windowSec: 1800, blockSec: 1800 };
+const SIGNUP_IP_LIMIT: Limit = { max: 8, windowSec: 3600, blockSec: 3600 };
+const SIGNUP_SUBJECT_LIMIT: Limit = { max: 3, windowSec: 3600, blockSec: 3600 };
+const TOKEN_IP_LIMIT: Limit = { max: 20, windowSec: 600, blockSec: 900 };
 
 export const Route = createFileRoute("/api/local/auth")({
   server: {
     handlers: {
-      OPTIONS: async () => new Response(null, { status: 204, headers: cors }),
+      OPTIONS: async ({ request }) => new Response(null, { status: 204, headers: corsHeaders(request) }),
       GET: async ({ request }) => {
+        const cors = corsHeaders(request);
         const user = bearerUser(request);
         if (!user) return Response.json({ session: null }, { headers: cors });
         return Response.json(
@@ -48,6 +61,7 @@ export const Route = createFileRoute("/api/local/auth")({
         );
       },
       POST: async ({ request }) => {
+        const cors = corsHeaders(request);
         try {
           const body = (await request.json()) as {
             action?: string;
@@ -67,6 +81,7 @@ export const Route = createFileRoute("/api/local/auth")({
             userId?: string;
             ticket?: string;
             newEmail?: string;
+            turnstileToken?: string;
           };
           const origin = mailContinueOrigin(request);
           const webauthnOrigin =
@@ -80,8 +95,11 @@ export const Route = createFileRoute("/api/local/auth")({
             })();
 
           if (body.action === "signin") {
+            await guardRate(request, "signin", [body.email], IP_LIMIT, SUBJECT_LIMIT);
+            await verifyTurnstile(request, body.turnstileToken);
             const r = await requestLoginCode(body.email || "", body.password || "", origin);
             if (!r.needsCode && "session" in r && r.session) {
+              await clearRate(request, "signin", [body.email]);
               return Response.json(
                 {
                   session: { access_token: r.session.access_token, user: r.session.user },
@@ -94,24 +112,33 @@ export const Route = createFileRoute("/api/local/auth")({
             return Response.json({ session: null, ...r }, { headers: cors });
           }
           if (body.action === "signin-direct") {
+            await guardRate(request, "signin", [body.email], IP_LIMIT, SUBJECT_LIMIT);
             const s = await signIn(body.email || "", body.password || "");
+            await clearRate(request, "signin", [body.email]);
             return Response.json({ session: { access_token: s.access_token, user: s.user } }, { headers: cors });
           }
           if (body.action === "verify-login-code") {
+            await guardRate(request, "login-code", [body.email], CODE_IP_LIMIT, CODE_SUBJECT_LIMIT);
             const s = await verifyLoginCode(body.email || "", body.code || "");
+            await clearRate(request, "login-code", [body.email]);
             return Response.json({ session: { access_token: s.access_token, user: s.user } }, { headers: cors });
           }
           if (body.action === "complete-login-link") {
+            await guardRate(request, "login-link", [body.email], TOKEN_IP_LIMIT, CODE_SUBJECT_LIMIT);
             const s = await completeLoginPending(body.email || "", body.pending || "");
+            await clearRate(request, "login-link", [body.email]);
             return Response.json({ session: { access_token: s.access_token, user: s.user } }, { headers: cors });
           }
           if (body.action === "signup") {
+            await guardRate(request, "signup", [body.email], SIGNUP_IP_LIMIT, SIGNUP_SUBJECT_LIMIT);
+            await verifyTurnstile(request, body.turnstileToken);
             const profile: { firstName?: string; lastName?: string; surname?: string; phone?: string } = {};
             if (body.firstName) profile.firstName = body.firstName;
             if (body.lastName) profile.lastName = body.lastName;
             if (body.surname) profile.surname = body.surname;
             if (body.phone) profile.phone = body.phone;
             const s = await signUp(body.email || "", body.password || "", origin, profile);
+            await clearRate(request, "signup", [body.email]);
             if (s.access_token) {
               return Response.json(
                 { session: { access_token: s.access_token, user: s.user }, needsConfirmation: false },
@@ -148,30 +175,45 @@ export const Route = createFileRoute("/api/local/auth")({
             return Response.json({ user }, { headers: cors });
           }
           if (body.action === "reset-request") {
+            await guardRate(request, "reset-request", [body.email], MAIL_IP_LIMIT, MAIL_SUBJECT_LIMIT);
+            await verifyTurnstile(request, body.turnstileToken);
             const r = await requestPasswordReset(body.email || "", origin);
+            await clearRate(request, "reset-request", [body.email]);
             return Response.json(r, { headers: cors });
           }
           if (body.action === "reset-verify") {
+            await guardRate(request, "reset-verify", [body.email], CODE_IP_LIMIT, CODE_SUBJECT_LIMIT);
             const r = await verifyPasswordResetCode(body.email || "", body.code || "");
+            await clearRate(request, "reset-verify", [body.email]);
             return Response.json(r, { headers: cors });
           }
           if (body.action === "reset-complete") {
+            await guardRate(request, "reset-complete", [body.email], CODE_IP_LIMIT, CODE_SUBJECT_LIMIT);
             const r = await completePasswordReset(body.email || "", body.ticket || "", body.password || "");
+            await clearRate(request, "reset-complete", [body.email]);
             return Response.json({ ok: true, ...r }, { headers: cors });
           }
           if (body.action === "change-email-request") {
+            await guardRate(request, "change-email", [body.email], MAIL_IP_LIMIT, MAIL_SUBJECT_LIMIT);
+            await verifyTurnstile(request, body.turnstileToken);
             const r = await requestEmailChangeCode(body.email || "", origin);
+            await clearRate(request, "change-email", [body.email]);
             return Response.json(r, { headers: cors });
           }
           if (body.action === "change-email-verify") {
+            await guardRate(request, "change-email-verify", [body.email], CODE_IP_LIMIT, CODE_SUBJECT_LIMIT);
             const r = await verifyEmailChangeCode(body.email || "", body.code || "");
+            await clearRate(request, "change-email-verify", [body.email]);
             return Response.json(r, { headers: cors });
           }
           if (body.action === "change-email-begin") {
+            await guardRate(request, "change-email-begin", [body.email], MAIL_IP_LIMIT, MAIL_SUBJECT_LIMIT);
             const r = await beginEmailChange(body.email || "", body.ticket || "", body.newEmail || "", origin);
+            await clearRate(request, "change-email-begin", [body.email]);
             return Response.json(r, { headers: cors });
           }
           if (body.action === "change-email-confirm") {
+            await guardRate(request, "change-email-confirm", [], TOKEN_IP_LIMIT, TOKEN_IP_LIMIT);
             const r = await confirmEmailChange(body.ticket || "");
             return Response.json(r, { headers: cors });
           }
@@ -204,6 +246,7 @@ export const Route = createFileRoute("/api/local/auth")({
           }
           if (body.action === "webauthn-login-options") {
             if (!wa) return Response.json({ error: "Unknown action" }, { status: 400, headers: cors });
+            await guardRate(request, "biometric", [body.email], CODE_IP_LIMIT, CODE_SUBJECT_LIMIT);
             const r = await wa.webauthnLoginOptions(body.email || "", webauthnOrigin);
             return Response.json(r, { headers: cors });
           }
@@ -212,11 +255,13 @@ export const Route = createFileRoute("/api/local/auth")({
               return Response.json({ error: "Missing biometric assertion" }, { status: 400, headers: cors });
             }
             if (!wa) return Response.json({ error: "Unknown action" }, { status: 400, headers: cors });
+            await guardRate(request, "biometric", [body.email], CODE_IP_LIMIT, CODE_SUBJECT_LIMIT);
             const s = await wa.webauthnLoginVerify(
               body.email || "",
               webauthnOrigin,
               body.credential as AuthenticationResponseJSON,
             );
+            await clearRate(request, "biometric", [body.email]);
             return Response.json({ session: { access_token: s.access_token, user: s.user } }, { headers: cors });
           }
           if (body.action === "work-id-set") {
@@ -227,6 +272,7 @@ export const Route = createFileRoute("/api/local/auth")({
           }
           if (body.action === "webauthn-login-options-workid") {
             if (!wa) return Response.json({ error: "Unknown action" }, { status: 400, headers: cors });
+            await guardRate(request, "biometric", [body.workId], CODE_IP_LIMIT, CODE_SUBJECT_LIMIT);
             const r = await wa.webauthnLoginOptionsByWorkId(body.workId || "", webauthnOrigin);
             return Response.json(r, { headers: cors });
           }
@@ -235,15 +281,23 @@ export const Route = createFileRoute("/api/local/auth")({
               return Response.json({ error: "Missing biometric assertion" }, { status: 400, headers: cors });
             }
             if (!wa) return Response.json({ error: "Unknown action" }, { status: 400, headers: cors });
+            await guardRate(request, "biometric", [body.workId], CODE_IP_LIMIT, CODE_SUBJECT_LIMIT);
             const s = await wa.webauthnLoginVerifyByWorkId(
               body.workId || "",
               webauthnOrigin,
               body.credential as AuthenticationResponseJSON,
             );
+            await clearRate(request, "biometric", [body.workId]);
             return Response.json({ session: { access_token: s.access_token, user: s.user } }, { headers: cors });
           }
           return Response.json({ error: "Unknown action" }, { status: 400, headers: cors });
         } catch (e) {
+          if (e instanceof RateLimitError) {
+            return Response.json(
+              { error: e.message },
+              { status: 429, headers: { ...cors, "Retry-After": String(e.retryAfterSec) } },
+            );
+          }
           return Response.json(
             { error: e instanceof Error ? e.message : "Auth failed" },
             { status: 400, headers: cors },

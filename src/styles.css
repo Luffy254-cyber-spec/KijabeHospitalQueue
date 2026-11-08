@@ -1969,6 +1969,18 @@ html {
 .hope-dock-open {
   width: min(22.5rem, calc(100vw - 1.25rem));
 }
+/* Mounted once at the app root, so it must stay put while pages scroll. */
+.hope-dock-global {
+  position: fixed;
+  right: max(0.75rem, env(safe-area-inset-right));
+  bottom: max(0.55rem, env(safe-area-inset-bottom));
+  z-index: 45;
+}
+.hope-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
 .hope-fab {
   position: relative;
   width: 3.7rem;
