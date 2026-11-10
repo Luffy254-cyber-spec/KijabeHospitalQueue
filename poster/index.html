@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>Care Flow — KCHS Research Day Poster · AIC Kijabe Hospital</title>
+<meta name="description" content="Care Flow: A Bilingual Digital Queue Management System for Outpatient Services at AIC Kijabe Hospital. 2nd KCHS Research Day, 20th November 2026.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,500;0,8..60,600;1,8..60,500;1,8..60,600;1,8..60,700&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   CARE FLOW — KCHS RESEARCH DAY POSTER
+   Fixed print geometry: 36in x 24in landscape, one page.
+   ============================================================ */
+:root{
+  --primary:#159ed5;
+  --deep:#0c729c;
+  --navy:#102a43;
+  --light:#60a5fa;
+  --band:#dcecf5;
+  --page:#eef6fb;
+  --frame:#e3f0f9;
+  --border:#b7d8ea;
+  --amber:#f59e0b;
+  --serif:'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --sans:'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+*,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+*{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+
+html{ scrollbar-color:var(--primary) #0b2233; }
+body{
+  font-family:var(--sans);
+  color:var(--navy);
+  background:#0b2233;
+}
+
+/* ---------- screen stage & scaler ---------- */
+@media screen{
+  body{
+    min-height:100vh;
+    background:
+      radial-gradient(1200px 700px at 18% -10%, rgba(21,158,213,.28), rgba(21,158,213,0) 60%),
+      radial-gradient(1000px 800px at 105% 110%, rgba(12,114,156,.35), rgba(12,114,156,0) 55%),
+      linear-gradient(160deg,#0d2a40 0%, #0b2233 55%, #081a28 100%);
+  }
+  /* The scroll container starts below a reserved 68px toolbar strip, so the
+     fixed toolbar never overlaps poster content while scrolling (fit or 100%). */
+  #viewport{ position:fixed; top:68px; left:0; right:0; bottom:0; overflow:auto; display:flex; }
+  #stage{ margin:auto; position:relative; flex:none; animation:stage-in .7s ease-out both; }
+  @keyframes stage-in{ from{ opacity:0; transform:translateY(12px); } to{ opacity:1; transform:none; } }
+  .poster{ transform-origin:0 0; box-shadow:0 34px 90px rgba(2,14,24,.6), 0 4px 18px rgba(2,14,24,.5); }
+  ::-webkit-scrollbar{ width:12px; height:12px; }
+  ::-webkit-scrollbar-track{ background:#0b2233; }
+  ::-webkit-scrollbar-thumb{ background:var(--primary); border-radius:7px; border:2px solid #0b2233; }
+  ::-webkit-scrollbar-thumb:hover{ background:var(--light); }
+  ::-webkit-scrollbar-corner{ background:#0b2233; }
+}
+@media (prefers-reduced-motion: reduce){
+  #stage{ animation:none; }
+}
+
+/* ---------- floating toolbar (screen only) ---------- */
+.toolbar{
+  position:fixed; top:14px; right:14px; z-index:50;
+  display:flex; align-items:center; gap:6px;
+  background:rgba(255,255,255,.97);
+  border:1px solid var(--border);
+  border-radius:11px; padding:6px;
+  box-shadow:0 10px 28px rgba(2,14,24,.45);
+  font-family:var(--sans);
+}
+.toolbar button{
+  appearance:none; border:1px solid transparent; background:transparent;
+  font:600 13px/1 var(--sans); color:var(--deep);
+  padding:8px 13px; border-radius:8px; cursor:pointer;
+  transition:background .15s ease, color .15s ease;
+}
+.toolbar button:hover{ background:var(--band); color:var(--navy); }
+.toolbar button:focus-visible{ outline:2px solid var(--primary); outline-offset:2px; }
+.toolbar button.active{ background:var(--primary); color:#fff; }
+.toolbar button.active:hover{ background:var(--deep); }
+.toolbar .tb-scale{ font:600 12px/1 var(--sans); color:var(--deep); min-width:44px; text-align:center; border-left:1px solid var(--border); padding-left:10px; }
+.toolbar .tb-print{ background:var(--navy); color:#fff; }
+.toolbar .tb-print:hover{ background:var(--deep); color:#fff; }
+
+/* ============================================================
+   POSTER — fixed 36in x 24in
+   ============================================================ */
+.poster{
+  width:36in; height:24in;
+  padding:0.6in;
+  background:var(--page);
+  display:flex; flex-direction:column;
+  position:relative;
+}
+
+/* ---------- header band ---------- */
+.band{
+  flex:none; height:3.6in;
+  display:flex; align-items:center; gap:0.4in;
+  padding:0.22in 0.35in;
+  background:linear-gradient(100deg,#e9f5fc 0%, #d3e9f6 38%, #b5dcf0 72%, #93cdea 100%);
+  border:1.5pt solid #a9d0e8;
+  border-radius:0.14in;
+}
+.logo-chip{
+  flex:none; background:#fff;
+  border:1.5pt solid #c4dfee; border-radius:0.12in;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 2pt 8pt rgba(16,42,67,.10);
+}
+.logo-chip.hospital{ padding:0.13in 0.16in; }
+.logo-chip.hospital img{ height:1.85in; width:auto; display:block; }
+.logo-chip.mark{ padding:0.12in; border-radius:50%; }
+.logo-chip.mark img{ height:2.6in; width:2.6in; display:block; border-radius:50%; }
+.head-center{ flex:1; min-width:0; text-align:center; }
+.head-center h1{
+  font-family:var(--serif); font-style:italic; font-weight:600;
+  font-size:72pt; line-height:1.1; letter-spacing:-.01em;
+  color:var(--navy);
+}
+.head-center .authors{
+  margin-top:0.16in;
+  font-size:30pt; font-weight:600; line-height:1.2; color:var(--navy);
+}
+.head-center .authors .first{
+  text-decoration:underline; text-decoration-color:var(--deep);
+  text-decoration-thickness:2.5pt; text-underline-offset:7pt;
+}
+.head-center .affiliation{
+  margin-top:0.1in;
+  font-size:26pt; font-weight:500; line-height:1.2; color:#2c4a66;
+}
+
+/* ---------- four-column body ---------- */
+.columns{
+  flex:1; min-height:0;
+  display:grid; grid-template-columns:repeat(4,1fr); gap:0.35in;
+  margin-top:0.3in;
+}
+.col{ display:flex; flex-direction:column; gap:0.22in; min-height:0; min-width:0; }
+.sec{
+  flex:none;
+  font-size:34pt; font-weight:700; line-height:1.1; letter-spacing:.005em;
+  color:var(--navy);
+  background:var(--band);
+  border:1pt solid #bcd9ec; border-left:0.09in solid var(--primary);
+  border-radius:0.08in;
+  padding:0.1in 0.22in;
+}
+.box{
+  background:#fff;
+  border:1.5pt solid var(--border);
+  border-radius:0.1in;
+  padding:0.25in;
+  font-size:24pt; line-height:1.38;
+}
+.box.grow{ flex:1; min-height:0; }
+.box p + p{ margin-top:0.15in; }
+.box strong{ font-weight:700; color:var(--deep); }
+
+/* introduction */
+.intro-box{ display:flex; flex-direction:column; justify-content:space-between; }
+.intro-box p + p{ margin-top:0; }
+.objective{
+  flex:none;
+  background:#fff;
+  border:1.5pt solid var(--border);
+  border-left:0.09in solid var(--amber);
+  border-radius:0.1in;
+  padding:0.22in 0.25in;
+  font-size:23pt; line-height:1.36;
+}
+.objective .obj-label{
+  display:block; font-size:21pt; font-weight:800; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--deep); margin-bottom:0.07in;
+}
+
+/* methods */
+.methods{ font-size:23pt; line-height:1.36; display:flex; flex-direction:column; }
+.methods ul{ list-style:none; display:flex; flex-direction:column; justify-content:space-between; flex:1; gap:0.16in; }
+.methods li{ position:relative; padding-left:0.3in; }
+.methods li::before{
+  content:""; position:absolute; left:0; top:0.155in;
+  width:0.13in; height:0.13in; border-radius:0.03in; background:var(--primary);
+}
+.methods .m-label{ font-weight:700; color:var(--deep); }
+
+/* results */
+.results-text{ font-size:23pt; }
+.scope-label{ display:block; margin-top:0.12in; font-weight:700; color:var(--deep); }
+.stats{
+  display:grid; grid-template-columns:repeat(3,1fr); gap:0.12in; margin-top:0.1in;
+}
+.stat{
+  background:var(--page); border:1pt solid #c8e2f2; border-radius:0.08in;
+  padding:0.1in 0.08in; text-align:center;
+}
+.stat b{ display:block; font-size:32pt; font-weight:800; line-height:1.05; color:var(--deep); }
+.stat span{ display:block; margin-top:0.04in; font-size:16.5pt; font-weight:500; line-height:1.2; color:var(--navy); }
+
+/* figures */
+.frame{
+  flex:none;
+  background:var(--frame);
+  border:1.5pt solid var(--border);
+  border-radius:0.1in;
+  padding:0.18in;
+}
+.frame svg{ width:100%; height:auto; display:block; font-family:var(--sans); }
+.frame figcaption{
+  margin-top:0.12in;
+  font-family:var(--serif); font-style:italic; font-weight:500;
+  font-size:20pt; line-height:1.3; color:var(--navy);
+}
+.frame figcaption strong{ font-style:normal; font-weight:700; color:var(--deep); }
+
+/* conclusions */
+.conclusions{ display:flex; flex-direction:column; }
+.conclusions .c-body{ flex:1; display:flex; flex-direction:column; justify-content:space-between; }
+.conclusions .c-body p + p{ margin-top:0; }
+.ack{
+  margin-top:0; padding-top:0.16in;
+  border-top:1.5pt solid var(--band);
+  font-size:20pt; line-height:1.32; color:var(--navy);
+}
+.ack strong{ font-weight:700; color:var(--deep); }
+
+/* bibliography */
+.bib{ font-size:18.5pt; line-height:1.34; }
+.bib ol{ list-style:none; counter-reset:ref; }
+.bib li{ counter-increment:ref; position:relative; padding-left:0.34in; }
+.bib li + li{ margin-top:0.12in; }
+.bib li::before{
+  content:counter(ref) "."; position:absolute; left:0; top:0;
+  font-weight:700; color:var(--deep);
+}
+.bib em{ font-style:italic; }
+
+/* ---------- footer ---------- */
+.footer{
+  flex:none; height:0.5in; margin-top:0.25in;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 0.08in;
+  border-top:2.5pt solid var(--primary);
+}
+.footer .f-left{ font-size:18pt; font-weight:600; color:var(--deep); letter-spacing:.01em; }
+.footer .f-right{ font-family:var(--serif); font-style:italic; font-size:19pt; font-weight:600; color:var(--deep); }
+
+/* ============================================================
+   PRINT — exactly one 36in x 24in page, full colour
+   ============================================================ */
+@page{ size:36in 24in; margin:0; }
+@media print{
+  html,body{ width:36in; height:24in; margin:0 !important; padding:0 !important; background:#fff !important; }
+  body{ display:block; }
+  #viewport{ position:static !important; top:auto !important; overflow:visible !important; width:auto !important; height:auto !important; display:block !important; }
+  #stage{ width:auto !important; height:auto !important; margin:0 !important; animation:none !important; }
+  .poster{ transform:none !important; box-shadow:none !important; animation:none !important; }
+  .toolbar{ display:none !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar" role="toolbar" aria-label="Poster view controls">
+  <button id="btnFit" class="active" aria-pressed="true" title="Fit poster to window">Fit</button>
+  <button id="btn100" aria-pressed="false" title="Actual size (100%)">100%</button>
+  <span class="tb-scale" id="scaleVal" aria-hidden="true">–</span>
+  <button id="btnPrint" class="tb-print" title="Print the poster (36 × 24 in)">Print</button>
+</div>
+
+<div id="viewport">
+<div id="stage">
+<div class="poster" id="poster">
+
+  <!-- ================= HEADER ================= -->
+  <header class="band">
+    <div class="logo-chip hospital">
+      <img src="assets/kijabe-logo.png" alt="AIC Kijabe Hospital — Health Care to God's Glory">
+    </div>
+    <div class="head-center">
+      <h1>Care Flow: A Bilingual Digital Queue Management System<br>for Outpatient Services at AIC Kijabe Hospital</h1>
+      <p class="authors"><span class="first">Care Flow Development Team</span></p>
+      <p class="affiliation">AIC Kijabe Hospital, Kijabe, Kenya</p>
+    </div>
+    <div class="logo-chip mark">
+      <img src="assets/care-flow-mark.png" alt="Care Flow system mark">
+    </div>
+  </header>
+
+  <!-- ================= BODY ================= -->
+  <main class="columns">
+
+    <!-- ---------- COLUMN 1 : INTRODUCTION ---------- -->
+    <section class="col" aria-label="Introduction">
+      <h2 class="sec">Introduction</h2>
+      <div class="box grow intro-box">
+        <p>The outpatient department at AIC Kijabe Hospital managed daily patient flow through manual, paper-based queues. Overcrowded waiting areas produced long and unpredictable waits, queue-jumping disputes, and missed calls, and staff had no auditable record of the patient journey from arrival to consultation.</p>
+        <p>English-only signage and announcements excluded Kiswahili-speaking patients, while cash-only payment steps fragmented the visit record: registration, payment and clinical care were documented in separate, disconnected paper trails.</p>
+        <p>Patient waiting time is a documented determinant of satisfaction with outpatient care (Oche &amp; Adamu, 2013). The World Health Organization recommends digital health interventions for health-system strengthening (WHO, 2019), and Kenya&rsquo;s National eHealth Policy 2016&ndash;2030 calls for people-centred digital health services. These priorities motivate a locally designed, bilingual digital queue for outpatient care.</p>
+      </div>
+      <div class="objective">
+        <span class="obj-label">Objective</span>
+        To design, build and deploy a secure, bilingual electronic queue system covering the full outpatient journey &mdash; registration &rarr; payment &rarr; triage &rarr; consultation &mdash; with live room displays and voice announcements.
+      </div>
+    </section>
+
+    <!-- ---------- COLUMN 2 : METHODS ---------- -->
+    <section class="col" aria-label="Methods">
+      <h2 class="sec">Methods</h2>
+      <div class="box grow methods">
+        <ul>
+          <li><span class="m-label">Setting &amp; design.</span> AIC Kijabe Hospital outpatient department; iterative design&ndash;build&ndash;deploy cycles during 2026; registration-first patient flow.</li>
+          <li><span class="m-label">Queue engine.</span> PostgreSQL security-definer daily sequences issue atomic token numbers &mdash; duplicate tokens are impossible by construction; tokens reset daily.</li>
+          <li><span class="m-label">Payments.</span> M-Pesa Daraja STK push to the patient&rsquo;s phone, with insurance-provider verification as an alternative path; payment confirmed before triage.</li>
+          <li><span class="m-label">Patient flow.</span> Bilingual self-check-in kiosk (English / Kiswahili; new-patient check-in is Kiswahili-first) &rarr; triage &rarr; waiting &rarr; room call.</li>
+          <li><span class="m-label">Calling.</span> Live display board covering <strong>57 active consultation rooms</strong>; public-address announcements generated with Gemini text-to-speech (<strong>3 voices</strong>, double chime + token read twice, with browser-speech fallback).</li>
+          <li><span class="m-label">Staff tools.</span> Role-based dashboards, biometric work-ID sign-in (WebAuthn), room assignments, attendance and summons.</li>
+          <li><span class="m-label">Security.</span> 12 layered controls including Cloudflare Turnstile, database-backed rate limiting (5 attempts / 10 min &rarr; 15 min block), row-level security, and an append-only audit trail.</li>
+          <li><span class="m-label">Data lifecycle.</span> Nightly 00:00 (Africa/Nairobi) archive of completed visits to Excel (.xlsx) workbooks auto-delivered to the superadmin&rsquo;s device; patients still waiting or in rooms are never purged.</li>
+          <li><span class="m-label">Stack.</span> React 19 + TanStack Start + TypeScript; PostgreSQL on Neon; hosted on Render; installable offline-capable PWA.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ---------- COLUMN 3 : RESULTS ---------- -->
+    <section class="col" aria-label="Results">
+      <h2 class="sec">Results</h2>
+      <div class="box grow results-text">
+        <p>The complete system is deployed and running end to end in production. Queue integrity is enforced at the database level; every completed visit is archived nightly and auto-exported to Excel. Formal waiting-time and satisfaction outcomes are the planned next phase of work.</p>
+        <span class="scope-label">Verified system scope</span>
+        <div class="stats">
+          <div class="stat"><b>57</b><span>active rooms</span></div>
+          <div class="stat"><b>22</b><span>services</span></div>
+          <div class="stat"><b>23</b><span>relational tables</span></div>
+          <div class="stat"><b>12</b><span>security controls</span></div>
+          <div class="stat"><b>2</b><span>interface languages</span></div>
+          <div class="stat"><b>3</b><span>PA voices</span></div>
+        </div>
+      </div>
+
+      <figure class="frame" aria-label="Figure 1: the Care Flow patient journey">
+        <svg viewBox="0 0 760 380" role="img" aria-labelledby="fig1-title">
+          <title id="fig1-title">Patient journey: Register, Pay, Triage, Wait, Room call, Consult, nightly archive</title>
+          <defs>
+            <marker id="arr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M0 0L10 5L0 10z" fill="#0c729c"/>
+            </marker>
+          </defs>
+          <!-- connectors -->
+          <g stroke="#0c729c" stroke-width="3" fill="none">
+            <line x1="175" y1="83" x2="193" y2="83" marker-end="url(#arr)"/>
+            <line x1="371" y1="83" x2="389" y2="83" marker-end="url(#arr)"/>
+            <line x1="567" y1="83" x2="585" y2="83" marker-end="url(#arr)"/>
+            <line x1="674" y1="162" x2="674" y2="218" marker-end="url(#arr)"/>
+            <line x1="545" y1="297" x2="523" y2="297" marker-end="url(#arr)"/>
+            <line x1="305" y1="297" x2="283" y2="297" marker-end="url(#arr)"/>
+          </g>
+          <!-- node 1 : Register -->
+          <g>
+            <rect x="1" y="8" width="170" height="150" rx="16" fill="#0a678f"/>
+            <circle cx="28" cy="36" r="16" fill="rgba(255,255,255,.20)" stroke="#fff" stroke-width="1.5"/>
+            <text x="28" y="42.5" text-anchor="middle" font-size="19" font-weight="700" fill="#fff">1</text>
+            <g transform="translate(133,22)" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="8" r="3.4"/><path d="M5.5 19c.8-3.6 3.4-5.4 6.5-5.4s5.7 1.8 6.5 5.4"/>
+            </g>
+            <text x="86" y="90" text-anchor="middle" font-size="27" font-weight="700" fill="#fff">Register</text>
+            <text x="86" y="120" text-anchor="middle" font-size="21.5" fill="#fff">bilingual kiosk</text>
+          </g>
+          <!-- node 2 : Pay -->
+          <g>
+            <rect x="197" y="8" width="170" height="150" rx="16" fill="#0c729c"/>
+            <circle cx="224" cy="36" r="16" fill="rgba(255,255,255,.20)" stroke="#fff" stroke-width="1.5"/>
+            <text x="224" y="42.5" text-anchor="middle" font-size="19" font-weight="700" fill="#fff">2</text>
+            <g transform="translate(329,22)" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="7.5" y="3.5" width="9" height="17" rx="2"/><line x1="10.5" y1="17.5" x2="13.5" y2="17.5"/>
+            </g>
+            <text x="282" y="90" text-anchor="middle" font-size="27" font-weight="700" fill="#fff">Pay</text>
+            <text x="282" y="120" text-anchor="middle" font-size="21.5" fill="#fff">M-Pesa STK /</text>
+            <text x="282" y="146" text-anchor="middle" font-size="21.5" fill="#fff">insurance</text>
+          </g>
+          <!-- node 3 : Triage -->
+          <g>
+            <rect x="393" y="8" width="170" height="150" rx="16" fill="#0d79a6"/>
+            <circle cx="420" cy="36" r="16" fill="rgba(255,255,255,.20)" stroke="#fff" stroke-width="1.5"/>
+            <text x="420" y="42.5" text-anchor="middle" font-size="19" font-weight="700" fill="#fff">3</text>
+            <g transform="translate(525,22)" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="6" y="5" width="12" height="16" rx="2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="13" y2="15"/>
+            </g>
+            <text x="478" y="110" text-anchor="middle" font-size="27" font-weight="700" fill="#fff">Triage</text>
+          </g>
+          <!-- node 4 : Wait -->
+          <g>
+            <rect x="589" y="8" width="170" height="150" rx="16" fill="#0e7dab"/>
+            <circle cx="616" cy="36" r="16" fill="rgba(255,255,255,.20)" stroke="#fff" stroke-width="1.5"/>
+            <text x="616" y="42.5" text-anchor="middle" font-size="19" font-weight="700" fill="#fff">4</text>
+            <g transform="translate(721,22)" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/>
+            </g>
+            <text x="674" y="90" text-anchor="middle" font-size="27" font-weight="700" fill="#fff">Wait</text>
+            <text x="674" y="120" text-anchor="middle" font-size="21.5" fill="#fff">token queue</text>
+          </g>
+          <!-- node 5 : Room call -->
+          <g>
+            <rect x="549" y="222" width="210" height="150" rx="16" fill="#0c729c"/>
+            <circle cx="576" cy="250" r="16" fill="rgba(255,255,255,.20)" stroke="#fff" stroke-width="1.5"/>
+            <text x="576" y="256.5" text-anchor="middle" font-size="19" font-weight="700" fill="#fff">5</text>
+            <g transform="translate(721,236)" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2.5" y="5" width="12" height="9" rx="1.5"/><path d="M8.5 14v3M5.5 17h6"/><path d="M17.5 8.5c1 1 1 3 0 4M20 6.5c1.7 1.7 1.7 5.3 0 7"/>
+            </g>
+            <text x="654" y="304" text-anchor="middle" font-size="27" font-weight="700" fill="#fff">Room call</text>
+            <text x="654" y="334" text-anchor="middle" font-size="21.5" fill="#fff">57-room display</text>
+            <text x="654" y="360" text-anchor="middle" font-size="21.5" fill="#fff">+ voice PA</text>
+          </g>
+          <!-- node 6 : Consult -->
+          <g>
+            <rect x="309" y="222" width="210" height="150" rx="16" fill="#0d79a6"/>
+            <circle cx="336" cy="250" r="16" fill="rgba(255,255,255,.20)" stroke="#fff" stroke-width="1.5"/>
+            <text x="336" y="256.5" text-anchor="middle" font-size="19" font-weight="700" fill="#fff">6</text>
+            <g transform="translate(481,236)" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 3.5v5a4.5 4.5 0 0 0 9 0v-5"/><path d="M9.5 13v2.5a4.5 4.5 0 0 0 9 0V14"/><circle cx="18.5" cy="11.5" r="2.3"/>
+            </g>
+            <text x="414" y="324" text-anchor="middle" font-size="27" font-weight="700" fill="#fff">Consult</text>
+          </g>
+          <!-- node 7 : archive -->
+          <g>
+            <rect x="69" y="222" width="210" height="150" rx="16" fill="#102a43"/>
+            <circle cx="96" cy="250" r="16" fill="rgba(255,255,255,.20)" stroke="#fff" stroke-width="1.5"/>
+            <text x="96" y="256.5" text-anchor="middle" font-size="19" font-weight="700" fill="#fff">7</text>
+            <g transform="translate(241,236)" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="8" width="16" height="12" rx="1.5"/><path d="M3 4.5h18V8H3z"/><path d="M10 12h4"/>
+            </g>
+            <text x="174" y="304" text-anchor="middle" font-size="27" font-weight="700" fill="#fff">00:00 archive</text>
+            <text x="174" y="334" text-anchor="middle" font-size="21.5" fill="#fff">Excel export</text>
+          </g>
+        </svg>
+        <figcaption><strong>Figure 1.</strong> Patient journey through the Care Flow system, from bilingual registration to nightly Excel archive.</figcaption>
+      </figure>
+
+      <figure class="frame" aria-label="Figure 2: delivered system scope">
+        <svg viewBox="0 0 760 420" role="img" aria-labelledby="fig2-title">
+          <title id="fig2-title">Bar chart of delivered system scope: 57 rooms, 23 tables, 22 services, 12 security controls, 3 voices, 2 languages</title>
+          <!-- gridlines -->
+          <g stroke="#c2dcee" stroke-width="1.5">
+            <line x1="440" y1="10" x2="440" y2="364"/>
+            <line x1="580" y1="10" x2="580" y2="364"/>
+            <line x1="720" y1="10" x2="720" y2="364"/>
+          </g>
+          <line x1="300" y1="10" x2="300" y2="364" stroke="#9ec7e0" stroke-width="2"/>
+          <!-- category labels -->
+          <g font-size="22" font-weight="500" fill="#102a43">
+            <text x="0" y="41">Active consultation rooms</text>
+            <text x="0" y="101">Relational database tables</text>
+            <text x="0" y="161">Clinical services</text>
+            <text x="0" y="221">Layered security controls</text>
+            <text x="0" y="281">PA announcement voices</text>
+            <text x="0" y="341">Interface languages</text>
+          </g>
+          <!-- bars -->
+          <g>
+            <rect x="300" y="14" width="399" height="38" rx="19" fill="#f59e0b"/>
+            <rect x="300" y="74" width="161" height="38" rx="19" fill="#0c729c"/>
+            <rect x="300" y="134" width="154" height="38" rx="19" fill="#159ed5"/>
+            <rect x="300" y="194" width="84" height="38" rx="19" fill="#4aa8de"/>
+            <rect x="300" y="254" width="21" height="38" rx="10.5" fill="#7cbfe9"/>
+            <rect x="300" y="314" width="14" height="38" rx="7" fill="#abd7f3"/>
+          </g>
+          <!-- direct value labels (57 sits inside the amber bar, clear of every gridline) -->
+          <g font-size="25" font-weight="800" fill="#102a43">
+            <text x="689" y="42" text-anchor="end">57</text>
+            <text x="471" y="102">23</text>
+            <text x="464" y="162">22</text>
+            <text x="394" y="222">12</text>
+            <text x="331" y="282">3</text>
+            <text x="324" y="342">2</text>
+          </g>
+          <!-- axis -->
+          <g font-size="19" fill="#40607a" text-anchor="middle">
+            <text x="300" y="388">0</text>
+            <text x="440" y="388">20</text>
+            <text x="580" y="388">40</text>
+            <text x="720" y="388">60</text>
+          </g>
+          <text x="510" y="412" text-anchor="middle" font-size="19" font-style="italic" fill="#40607a">count of components</text>
+        </svg>
+        <figcaption><strong>Figure 2.</strong> Verified scope of the deployed system (component counts, November 2026).</figcaption>
+      </figure>
+    </section>
+
+    <!-- ---------- COLUMN 4 : CONCLUSIONS + BIBLIOGRAPHY ---------- -->
+    <section class="col" aria-label="Conclusions and bibliography">
+      <h2 class="sec">Conclusions</h2>
+      <div class="box grow conclusions">
+        <div class="c-body">
+          <p>A low-cost, locally built digital queue system is feasible for a Kenyan mission hospital using standard web technologies. Atomic tokens make the queue fair by construction; Kiswahili-first check-in makes it language-inclusive; M-Pesa integration keeps payment inside the visit record; and nightly Excel archives make the data auditable.</p>
+          <p><strong>Limitations.</strong> Development took place at a single site, and waiting-time and patient-satisfaction outcomes have not yet been measured.</p>
+          <p><strong>Next steps.</strong> The next phase is a prospective before&ndash;after waiting-time study with a patient-satisfaction survey, followed by scale-up to partner facilities.</p>
+        </div>
+        <p class="ack"><strong>Acknowledgements.</strong> AIC Kijabe Hospital staff and patients, and the KCHS Research Committee.</p>
+      </div>
+      <h2 class="sec">Bibliography</h2>
+      <div class="box bib">
+        <ol>
+          <li>World Health Organization. <em>WHO guideline: recommendations on digital interventions for health system strengthening.</em> Geneva: WHO; 2019.</li>
+          <li>Ministry of Health, Kenya. <em>Kenya National eHealth Policy 2016&ndash;2030.</em> Nairobi: Ministry of Health; 2016.</li>
+          <li>Oche MO, Adamu H. Determinants of patient waiting time in the general outpatient department of a tertiary health institution in north Western Nigeria. <em>Ann Med Health Sci Res.</em> 2013;3(4):488&ndash;492.</li>
+        </ol>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="footer">
+    <span class="f-left">2nd KCHS Research Day &mdash; 20th November 2026</span>
+    <span class="f-right">Health Care to God&rsquo;s Glory</span>
+  </footer>
+
+</div>
+</div>
+</div>
+
+<script>
+(function(){
+  var W = 3456, H = 2304;            /* 36in x 24in at 96dpi */
+  var STRIP = 68;                    /* reserved toolbar strip height (screen) */
+  var poster = document.getElementById('poster');
+  var stage  = document.getElementById('stage');
+  var out    = document.getElementById('scaleVal');
+  var bFit   = document.getElementById('btnFit');
+  var b100   = document.getElementById('btn100');
+  var bPrint = document.getElementById('btnPrint');
+  var mode   = 'fit';
+
+  function apply(s){
+    poster.style.transform = 'scale(' + s + ')';
+    stage.style.width  = (W * s) + 'px';
+    stage.style.height = (H * s) + 'px';
+    out.textContent = Math.round(s * 100) + '%';
+  }
+  function fit(){
+    var pad = 32;
+    var vw = window.innerWidth;
+    var vh = window.innerHeight - STRIP;
+    var s = Math.min((vw - pad) / W, (vh - pad) / H);
+    apply(Math.max(s, 0.02));
+  }
+  function setMode(m){
+    mode = m;
+    bFit.classList.toggle('active', m === 'fit');
+    b100.classList.toggle('active', m === '100');
+    bFit.setAttribute('aria-pressed', m === 'fit');
+    b100.setAttribute('aria-pressed', m === '100');
+    if (m === 'fit') fit(); else apply(1);
+  }
+  bFit.addEventListener('click', function(){ setMode('fit'); });
+  b100.addEventListener('click', function(){ setMode('100'); });
+  bPrint.addEventListener('click', function(){ window.print(); });
+  window.addEventListener('resize', function(){ if (mode === 'fit') fit(); });
+  fit();
+})();
+</script>
+</body>
+</html>

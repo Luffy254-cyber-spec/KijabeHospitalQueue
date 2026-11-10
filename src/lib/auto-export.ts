@@ -270,11 +270,15 @@ export function triggerDownload(filename: string, data: Blob): void {
   window.setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
+/** Same workbook as csvToXlsx, wrapped as a download-ready Excel Blob. */
+export function csvToXlsxBlob(csv: string, sheetName: string): Blob {
+  return new Blob([csvToXlsx(csv, sheetName)], { type: XLSX_MIME });
+}
+
 /** Converts an archive payload to a named .xlsx download + folder write pair. */
 export function buildXlsxFile(kind: "visits" | "payments", day: string, csv: string): { name: string; data: Blob } {
-  const buffer = csvToXlsx(csv, kind === "visits" ? "Visits" : "Payments");
   return {
     name: `kijabe-${kind}-${day}.xlsx`,
-    data: new Blob([buffer], { type: XLSX_MIME }),
+    data: csvToXlsxBlob(csv, kind === "visits" ? "Visits" : "Payments"),
   };
 }

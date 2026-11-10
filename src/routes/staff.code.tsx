@@ -10,7 +10,7 @@ import { MoonPhaseLive } from "@/lib/moon-phase";
 const PENDING_KEY = "kh-login-pending";
 const CODE_TTL_MS = 10 * 60 * 1000;
 
-type Pending = { email: string; sentAt: number };
+type Pending = { email: string; sentAt: number; mfa?: "totp" };
 
 export const Route = createFileRoute("/staff/code")({
   head: () => ({
@@ -76,6 +76,7 @@ function StaffCodePage() {
   useEffect(() => subscribeAmbient(() => setSound(ambientEnabled())), []);
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
   const pending = email ? readPending(email) : null;
+  const isMfa = purpose === "login" && pending?.mfa === "totp";
   const sentAt = pending?.sentAt ?? Date.now();
   const leftMs = Math.max(0, CODE_TTL_MS - (now - sentAt));
   const leftMin = Math.floor(leftMs / 60000);
@@ -254,11 +255,13 @@ function StaffCodePage() {
             ? purpose === "login"
               ? "Tide opens — welcome"
               : "Code confirmed"
-            : purpose === "reset"
-              ? "Reset code on the tide"
-              : purpose === "change-email"
-                ? "Code to change your email"
-                : "Code on the tide"}
+            : isMfa
+              ? "Authenticator code"
+              : purpose === "reset"
+                ? "Reset code on the tide"
+                : purpose === "change-email"
+                  ? "Code to change your email"
+                  : "Code on the tide"}
         </h1>
         <p className="mt-2 text-sm opacity-85">
           {ok ? (

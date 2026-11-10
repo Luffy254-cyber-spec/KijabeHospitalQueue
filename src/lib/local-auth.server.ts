@@ -10,10 +10,11 @@ import {
   sendPasswordResetCode,
   sendStaffConfirmEmail,
 } from "@/lib/firebase-mail.server";
+import { base32Decode, beginTotpLoginChallenge, matchTotp, openSecret, totpEnabled } from "@/lib/mfa.server";
 
 // Session tokens are HMAC-signed: a guessable secret lets anyone forge a login,
 // so production refuses to start signing with the development fallback.
-const SECRET = () => {
+export const SECRET = () => {
   const value = (process.env["AUTH_SECRET"] || "").trim();
   if (value.length >= 32) return value;
   if (process.env["NODE_ENV"] === "production" || process.env["APP_ENV"] === "production") {
@@ -194,18 +195,27 @@ export async function signIn(email: string, password: string) {
   const row = await findUserByPassword(email, password);
   if (!row) throw new Error("Invalid email or password");
   await assertCanLogin(row);
+  if (await totpEnabled(String(row.id))) {
+    throw new Error("Authenticator code required — sign in with email + password and enter your 6-digit code");
+  }
   return sessionFor(row);
 }
 
 /**
  * Step 1: password OK.
- * Superadmin/admin → immediate session (no verification).
+ * TOTP enrolled (any role) → authenticator challenge, no email sent.
+ * Superadmin/admin without TOTP → immediate session (no verification).
  * Staff → email verification code.
  */
 export async function requestLoginCode(email: string, password: string, origin: string) {
   const row = await findUserByPassword(email, password);
   if (!row) throw new Error("Invalid email or password");
   const roles = await assertCanLogin(row);
+
+  if (await totpEnabled(String(row.id))) {
+    await beginTotpLoginChallenge(row.email);
+    return { needsCode: true as const, mfa: "totp" as const, email: row.email, mailFailed: false };
+  }
 
   if (isElevated(roles)) {
     const s = await sessionFor(row);
@@ -228,13 +238,35 @@ export async function verifyLoginCode(email: string, code: string) {
   const address = email.trim().toLowerCase();
   const cleaned = code.replace(/\D/g, "").trim();
   const rows = await sql`
-    select id, email, email_confirmed_at, login_code_hash, login_code_expires
+    select id, email, email_confirmed_at, login_code_hash, login_code_expires,
+           totp_secret_enc, totp_enabled_at, totp_last_step
     from auth.users where lower(email) = ${address} limit 1
   `;
   const row = rows[0] as {
     id: string; email: string; email_confirmed_at: string | null;
     login_code_hash: string | null; login_code_expires: string | null;
+    totp_secret_enc: string | null; totp_enabled_at: string | null; totp_last_step: string | number | null;
   } | undefined;
+  if (row?.totp_enabled_at && row.totp_secret_enc) {
+    if (!row.login_code_expires || new Date(row.login_code_expires).getTime() < Date.now()) {
+      throw new Error("Sign-in window expired — enter your password again, then the authenticator code");
+    }
+    const secret = openSecret(row.totp_secret_enc);
+    if (!secret) throw new Error("Authenticator secret unreadable — ask admin@kijabe.local to reset your MFA");
+    const lastStep = row.totp_last_step === null ? null : Number(row.totp_last_step);
+    const step = matchTotp(base32Decode(secret), cleaned, lastStep);
+    if (step === null) {
+      throw new Error("Incorrect authenticator code — enter the current 6-digit code from your app (it refreshes every 30 seconds)");
+    }
+    await assertCanLogin(row);
+    await sql`
+      update auth.users
+      set totp_last_step = ${step},
+          login_code_hash = null, login_code_expires = null, login_pending_token = null
+      where id = ${row.id}::uuid
+    `;
+    return sessionFor(row);
+  }
   if (!row?.login_code_hash || !row.login_code_expires) {
     throw new Error("No verification code pending — sign in again to get a new code");
   }
@@ -256,14 +288,18 @@ export async function verifyLoginCode(email: string, code: string) {
 export async function completeLoginPending(email: string, pending: string) {
   const address = email.trim().toLowerCase();
   const rows = await sql`
-    select id, email, email_confirmed_at from auth.users
+    select id, email, email_confirmed_at, totp_enabled_at from auth.users
     where lower(email) = ${address}
       and login_pending_token = ${pending}
       and login_code_expires > now()
     limit 1
   `;
-  const row = rows[0] as { id: string; email: string; email_confirmed_at: string | null } | undefined;
+  const row = rows[0] as { id: string; email: string; email_confirmed_at: string | null; totp_enabled_at: string | null } | undefined;
   if (!row) throw new Error("Login link invalid or expired");
+  // The emailed link must never bypass an enrolled authenticator.
+  if (row.totp_enabled_at) {
+    throw new Error("This account uses an authenticator app — sign in with your password and enter the 6-digit code");
+  }
   await assertCanLogin(row);
   await sql`
     update auth.users
@@ -568,6 +604,7 @@ export async function beginEmailChange(email: string, ticket: string, newEmail: 
 
   const token = randomBytes(24).toString("base64url");
   const sent = await sendEmailChangeVerification(
+    address,
     next,
     `${origin}/staff/verify?changeEmail=${encodeURIComponent(token)}`,
   );

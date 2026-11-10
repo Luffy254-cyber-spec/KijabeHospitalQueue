@@ -154,9 +154,42 @@ export const supabase = {
           pending: json.pending as string | undefined,
           code: json.code as string | undefined,
           mailFailed: !!json.mailFailed,
+          mfa: json.mfa as string | undefined,
         };
       }
       return { data: { session: null, user: null }, error: { message: "Sign in failed" } };
+    },
+    async getMfaStatus() {
+      const { res, json } = await authFetch("/api/local/auth", {
+        method: "POST",
+        body: JSON.stringify({ action: "mfa-status" }),
+      });
+      if (!res.ok) return { data: null, error: { message: json.error || "Could not load authenticator status" } };
+      return { data: json as { enabled: boolean; enabledAt: string | null }, error: null };
+    },
+    async beginMfaEnrollment() {
+      const { res, json } = await authFetch("/api/local/auth", {
+        method: "POST",
+        body: JSON.stringify({ action: "mfa-enroll-begin" }),
+      });
+      if (!res.ok) return { data: null, error: { message: json.error || "Could not start enrollment" } };
+      return { data: json as { secret: string; uri: string; expiresAt: string }, error: null };
+    },
+    async confirmMfaEnrollment(code: string) {
+      const { res, json } = await authFetch("/api/local/auth", {
+        method: "POST",
+        body: JSON.stringify({ action: "mfa-enroll-confirm", code }),
+      });
+      if (!res.ok) return { data: null, error: { message: json.error || "Could not confirm enrollment" } };
+      return { data: json as { enabled: boolean; enabledAt: string }, error: null };
+    },
+    async disableMfa(code: string) {
+      const { res, json } = await authFetch("/api/local/auth", {
+        method: "POST",
+        body: JSON.stringify({ action: "mfa-disable", code }),
+      });
+      if (!res.ok) return { data: null, error: { message: json.error || "Could not disable authenticator" } };
+      return { data: json as { enabled: boolean }, error: null };
     },
     async verifyLoginCode({ email, code }: { email: string; code: string }) {
       const { res, json } = await authFetch("/api/local/auth", {

@@ -19,6 +19,13 @@ import {
 } from "@/lib/local-auth.server";
 import { confirmStaffEmail } from "@/lib/firebase-mail.server";
 import { mailContinueOrigin } from "@/lib/mail-origin.server";
+import {
+  adminResetTotp,
+  beginTotpEnrollment,
+  confirmTotpEnrollment,
+  disableTotp,
+  totpStatus,
+} from "@/lib/mfa.server";
 // Loaded on demand: @simplewebauthn/server drags in tsyringe, which asserts a
 // Reflect polyfill at import time — so load the polyfill first, then the lib.
 const loadWebauthn = () => import("@/lib/webauthn.server");
@@ -289,6 +296,40 @@ export const Route = createFileRoute("/api/local/auth")({
             );
             await clearRate(request, "biometric", [body.workId]);
             return Response.json({ session: { access_token: s.access_token, user: s.user } }, { headers: cors });
+          }
+          if (body.action === "mfa-status") {
+            const user = bearerUser(request);
+            if (!user) return Response.json({ error: "Sign in first" }, { status: 401, headers: cors });
+            const status = await totpStatus(user.id);
+            return Response.json(status, { headers: cors });
+          }
+          if (body.action === "mfa-enroll-begin") {
+            const user = bearerUser(request);
+            if (!user) return Response.json({ error: "Sign in first" }, { status: 401, headers: cors });
+            const r = await beginTotpEnrollment(user);
+            return Response.json(r, { headers: cors });
+          }
+          if (body.action === "mfa-enroll-confirm") {
+            const user = bearerUser(request);
+            if (!user) return Response.json({ error: "Sign in first" }, { status: 401, headers: cors });
+            await guardRate(request, "mfa-enroll", [user.email], CODE_IP_LIMIT, CODE_SUBJECT_LIMIT);
+            const r = await confirmTotpEnrollment(user, body.code || "");
+            await clearRate(request, "mfa-enroll", [user.email]);
+            return Response.json(r, { headers: cors });
+          }
+          if (body.action === "mfa-disable") {
+            const user = bearerUser(request);
+            if (!user) return Response.json({ error: "Sign in first" }, { status: 401, headers: cors });
+            await guardRate(request, "mfa-disable", [user.email], CODE_IP_LIMIT, CODE_SUBJECT_LIMIT);
+            const r = await disableTotp(user, body.code || "");
+            await clearRate(request, "mfa-disable", [user.email]);
+            return Response.json(r, { headers: cors });
+          }
+          if (body.action === "mfa-admin-reset") {
+            const user = bearerUser(request);
+            if (!user) return Response.json({ error: "Sign in first" }, { status: 401, headers: cors });
+            const r = await adminResetTotp(user, body.userId || "");
+            return Response.json(r, { headers: cors });
           }
           return Response.json({ error: "Unknown action" }, { status: 400, headers: cors });
         } catch (e) {

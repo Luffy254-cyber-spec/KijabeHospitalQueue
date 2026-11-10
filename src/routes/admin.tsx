@@ -15,7 +15,7 @@ import { MoonPhaseLive } from "@/lib/moon-phase";
 import {
   getAutoSaveStatus, pickExportFolder, forgetFolder, writeFileToFolder,
   triggerDownload, isExportHandled, markExportHandled, seedExportsIfNeeded,
-  buildXlsxFile, type AutoSaveStatus,
+  buildXlsxFile, csvToXlsxBlob, type AutoSaveStatus,
 } from "@/lib/auto-export";
 import { capitalizeName } from "@/lib/names";
 import { useIdleLogout } from "@/hooks/use-idle-logout";
@@ -432,17 +432,13 @@ function AdminConsole({ email }: { email: string }) {
     }
   };
 
-  const exportCsv = () => {
+  const exportExcel = () => {
     if (!stats?.visits?.length) { toast.error("No visits to export for this day"); return; }
     const headers = ["token","hospital_no","patient_name","service","status","triage","priority_reasons","payment","care_path","created_at"];
     const lines = [headers.join(",")];
-    // Quote and neutralise spreadsheet formulas (=, +, -, @) so an exported
-    // name or note cannot execute when the file is opened in Excel.
-    const cell = (value: unknown) => {
-      let text = value == null ? "" : String(value);
-      if (/^[=+\-@\t\r]/.test(text)) text = `'${text}`;
-      return `"${text.replace(/"/g, '""')}"`;
-    };
+    // Quote cells so commas/quotes survive the CSV→xlsx round-trip; the workbook
+    // writes every cell as a string, so formula-looking names cannot execute.
+    const cell = (value: unknown) => `"${(value == null ? "" : String(value)).replace(/"/g, '""')}"`;
     for (const v of stats.visits) {
       const row = [
         v.token, v.hospital_no || "", v.patient_name || "", v.service, v.status, v.triage_level,
@@ -451,24 +447,8 @@ function AdminConsole({ email }: { email: string }) {
       ].map(cell);
       lines.push(row.join(","));
     }
-    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `kijabe-patients-${stats.day}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Daily patient export downloaded");
-  };
-
-  const downloadBlob = (filename: string, content: string) => {
-    const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    triggerDownload(`kijabe-patients-${stats.day}.xlsx`, csvToXlsxBlob(lines.join("\n"), "Patients"));
+    toast.success("Daily patient Excel export downloaded");
   };
 
   const downloadArchive = async (id: string, kind: "visits" | "payments") => {
@@ -477,8 +457,9 @@ function AdminConsole({ email }: { email: string }) {
     const row = data as { day: string; visits_csv: string; payments_csv: string } | null;
     const csv = kind === "visits" ? row?.visits_csv : row?.payments_csv;
     if (!row || !csv) { toast.error("Nothing stored in that export"); return; }
-    downloadBlob(`kijabe-${kind}-${row.day}.csv`, csv);
-    toast.success("Export downloaded");
+    const file = buildXlsxFile(kind, row.day, csv);
+    triggerDownload(file.name, file.data);
+    toast.success("Excel export downloaded");
   };
 
   const runArchive = async () => {
@@ -504,8 +485,8 @@ function AdminConsole({ email }: { email: string }) {
         r.first_login, r.last_activity, r.still_online ? "yes" : "no",
       ].map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(","));
     }
-    downloadBlob(`kijabe-staff-hours-${timesheet?.from}_to_${timesheet?.to}.csv`, lines.join("\n"));
-    toast.success("Daily hours CSV downloaded");
+    triggerDownload(`kijabe-staff-hours-${timesheet?.from}_to_${timesheet?.to}.xlsx`, csvToXlsxBlob(lines.join("\n"), "Staff hours"));
+    toast.success("Daily hours Excel downloaded");
   };
 
   const exportTimesheetWindows = () => {
@@ -535,8 +516,8 @@ function AdminConsole({ email }: { email: string }) {
         ].map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(","));
       }
     }
-    downloadBlob(`kijabe-staff-login-windows-${timesheet?.from}_to_${timesheet?.to}.csv`, lines.join("\n"));
-    toast.success("Login windows CSV downloaded");
+    triggerDownload(`kijabe-staff-login-windows-${timesheet?.from}_to_${timesheet?.to}.xlsx`, csvToXlsxBlob(lines.join("\n"), "Login windows"));
+    toast.success("Login windows Excel downloaded");
   };
 
   const sheetTotals = useMemo(() => {
@@ -1000,10 +981,10 @@ function AdminConsole({ email }: { email: string }) {
                 {sheetLoading ? "Loading…" : "Refresh"}
               </Button>
               <Button variant="outline" onClick={exportTimesheetDaily}>
-                <Download className="h-4 w-4" /> Daily hours CSV
+                <Download className="h-4 w-4" /> Daily hours Excel
               </Button>
               <Button onClick={exportTimesheetWindows}>
-                <Download className="h-4 w-4" /> Login windows CSV
+                <Download className="h-4 w-4" /> Login windows Excel
               </Button>
               <p className="text-sm text-muted-foreground flex items-center gap-1">
                 <Clock className="h-4 w-4" />
@@ -1175,7 +1156,7 @@ function AdminConsole({ email }: { email: string }) {
               <div className="mt-3 overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="text-left text-muted-foreground">
-                    <tr><th className="py-1">Run</th><th>Data range</th><th>Visits</th><th>Payments</th><th>Visit CSV</th><th>Payment CSV</th></tr>
+                    <tr><th className="py-1">Run</th><th>Data range</th><th>Visits</th><th>Payments</th><th>Visit Excel</th><th>Payment Excel</th></tr>
                   </thead>
                   <tbody className="divide-y">
                     {archives.map((e) => (
@@ -1189,12 +1170,12 @@ function AdminConsole({ email }: { email: string }) {
                         <td>{e.payment_count}</td>
                         <td>
                           <Button size="sm" variant="outline" onClick={() => void downloadArchive(e.id, "visits")}>
-                            <Download className="h-3 w-3" /> CSV
+                            <Download className="h-3 w-3" /> Excel
                           </Button>
                         </td>
                         <td>
                           <Button size="sm" variant="outline" disabled={!e.payment_count} onClick={() => void downloadArchive(e.id, "payments")}>
-                            <Download className="h-3 w-3" /> CSV
+                            <Download className="h-3 w-3" /> Excel
                           </Button>
                         </td>
                       </tr>
@@ -1216,7 +1197,7 @@ function AdminConsole({ email }: { email: string }) {
                 <Input type="date" value={day} onChange={(e) => setDay(e.target.value)} />
               </div>
               <Button variant="outline" onClick={load}>Refresh</Button>
-              <Button onClick={exportCsv}><Download className="h-4 w-4" /> Export CSV</Button>
+              <Button onClick={exportExcel}><Download className="h-4 w-4" /> Export Excel</Button>
               <p className="text-sm text-muted-foreground flex items-center gap-1"><Moon className="h-4 w-4" /> Includes triage / walk-in reasons as medication & visit context</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-3">

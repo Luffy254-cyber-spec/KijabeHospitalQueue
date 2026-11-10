@@ -343,23 +343,36 @@ export async function sendEmailChangeCode(email: string, code: string, continueU
 }
 
 /**
- * Verification mail to the requested new address. The Firebase account it needs
- * is kept (id + secret returned) so it can become the account's mail conduit.
+ * Confirmation mail to the requested new address, sent through Firebase's
+ * "Email address change" template (VERIFY_AND_CHANGE_EMAIL) on the current
+ * address's conduit. Clicking the link moves that same conduit to the new
+ * address inside Firebase, then redirects to our continueUrl — so the id and
+ * secret returned here carry over to the changed account unchanged.
  */
 export async function sendEmailChangeVerification(
+  currentEmail: string,
   newEmail: string,
   continueUrl: string,
 ): Promise<{ firebaseLocalId?: string; firebaseSecret?: string; mailFailed?: boolean }> {
+  const current = currentEmail.trim().toLowerCase();
   const address = newEmail.trim().toLowerCase();
   try {
-    const fb = await ensureFirebaseUser(address);
+    const fb = await ensureFirebaseUser(current);
+    // Firebase accepts a taken target at send time and only fails when the link
+    // is clicked, which would strand the change — clear any app-owned conduit
+    // holding the address first (no-op when the address is free or external).
+    await purgeFirebase(address);
     const url = firebaseContinueUrlOrOmit(continueUrl);
     await post("accounts:update", {
       idToken: fb.idToken,
       displayName: "Confirm your new Kijabe Care Flow email",
       returnSecureToken: true,
     });
-    const oob: Record<string, unknown> = { requestType: "VERIFY_EMAIL", idToken: fb.idToken };
+    const oob: Record<string, unknown> = {
+      requestType: "VERIFY_AND_CHANGE_EMAIL",
+      idToken: fb.idToken,
+      newEmail: address,
+    };
     if (url) oob["continueUrl"] = url;
     await post("accounts:sendOobCode", oob);
     return { firebaseLocalId: fb.localId, firebaseSecret: fb.password };

@@ -2,7 +2,7 @@ import { createFileRoute, Link, Outlet, useNavigate, useRouterState } from "@tan
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { toast } from "sonner";
-import { Megaphone, RotateCcw, Play, Check, UserX, ArrowRightLeft, LogOut, Undo2, UserPlus, Eye, EyeOff, Bell, Fingerprint, ScanFace } from "lucide-react";
+import { Megaphone, RotateCcw, Play, Check, UserX, ArrowRightLeft, LogOut, Undo2, UserPlus, Eye, EyeOff, Bell, Fingerprint, ScanFace, ShieldCheck, Smartphone } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -956,6 +956,7 @@ function Console({ email, userId }: { email: string; userId: string }) {
           </TabsTrigger>
           <TabsTrigger value="advisor">Queue advisor</TabsTrigger>
           <TabsTrigger value="audit">Audit trail</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
         </TabsList>
 
         <TabsContent value="desk">
@@ -1306,6 +1307,7 @@ function Console({ email, userId }: { email: string; userId: string }) {
 
         <TabsContent value="advisor"><Advisor services={services} defaultService={counter?.service_id ?? ""} /></TabsContent>
         <TabsContent value="audit"><Audit /></TabsContent>
+        <TabsContent value="security" className="mt-4"><SecuritySettings /></TabsContent>
       </Tabs>
     </main>
   );
@@ -1567,6 +1569,156 @@ function Advisor({ services, defaultService }: { services: Service[]; defaultSer
         {result ? <div className="mt-3 whitespace-pre-wrap leading-relaxed">{result}</div>
           : <p className="mt-3 text-muted-foreground">{busy ? "Reviewing the queue…" : "Suggestions will appear here."}</p>}
       </div>
+    </section>
+  );
+}
+
+function SecuritySettings() {
+  const [status, setStatus] = useState<{ enabled: boolean; enabledAt: string | null } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [enroll, setEnroll] = useState<{ secret: string; uri: string; expiresAt: string } | null>(null);
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [QRCode, setQRCode] = useState<null | ((p: { value: string; size?: number; includeMargin?: boolean }) => any)>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const res = await supabase.auth.getMfaStatus();
+    if (res.error) toast.error(res.error.message);
+    else setStatus(res.data);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const startEnroll = async () => {
+    setBusy(true);
+    try {
+      const mod = await import("qrcode.react");
+      setQRCode(() => mod.QRCodeSVG);
+      const res = await supabase.auth.beginMfaEnrollment();
+      if (res.error) { toast.error(res.error.message); return; }
+      setEnroll(res.data);
+      setCode("");
+      toast.success("Scan the QR code with your authenticator app");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmEnroll = async () => {
+    if (code.replace(/\D/g, "").length !== 6) { toast.error("Enter the 6-digit code from your authenticator app"); return; }
+    setBusy(true);
+    try {
+      const res = await supabase.auth.confirmMfaEnrollment(code);
+      if (res.error) { toast.error(res.error.message); return; }
+      setEnroll(null);
+      setCode("");
+      toast.success("Authenticator app enrolled. You’ll enter a 6-digit code at sign-in.");
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const disable = async () => {
+    if (code.replace(/\D/g, "").length !== 6) { toast.error("Enter your current 6-digit code to turn it off"); return; }
+    setBusy(true);
+    try {
+      const res = await supabase.auth.disableMfa(code);
+      if (res.error) { toast.error(res.error.message); return; }
+      setCode("");
+      toast.success("Authenticator protection turned off");
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="mx-auto max-w-2xl rounded-2xl border bg-card p-6">
+      <div className="flex items-start gap-3">
+        <div className="rounded-xl bg-primary/10 p-2 text-primary"><ShieldCheck className="h-6 w-6" /></div>
+        <div>
+          <h2 className="text-xl font-bold">Authenticator app (TOTP)</h2>
+          <p className="text-sm text-muted-foreground">
+            Add multi-factor protection with Google Authenticator, Microsoft Authenticator, Authy, or any app that scans a QR code.
+            After enrollment, sign-in requires your password plus a 6-digit code that refreshes every 30 seconds.
+          </p>
+        </div>
+      </div>
+
+      {loading ? (
+        <p className="mt-6 text-sm text-muted-foreground">Loading security status…</p>
+      ) : status?.enabled ? (
+        <div className="mt-6 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+          <p className="font-semibold text-emerald-700 dark:text-emerald-300">Authenticator protection is on</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Enabled {status.enabledAt ? new Date(status.enabledAt).toLocaleString("en-KE") : ""}. Enter a current 6-digit code to turn it off.
+          </p>
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <input
+              className="h-10 w-40 rounded-md border bg-background px-3 font-mono tracking-[0.3em]"
+              inputMode="numeric"
+              maxLength={6}
+              placeholder="000000"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              aria-label="Current authenticator code"
+            />
+            <Button variant="destructive" disabled={busy || code.replace(/\D/g, "").length !== 6} onClick={() => void disable()}>
+              {busy ? "Please wait…" : "Turn off"}
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="mt-6">
+          {!enroll ? (
+            <div className="rounded-xl border border-dashed p-4">
+              <div className="flex items-center gap-2 font-semibold"><Smartphone className="h-4 w-4" /> Not enrolled</div>
+              <p className="mt-1 text-sm text-muted-foreground">Protect this account by linking an authenticator app.</p>
+              <Button className="mt-4" onClick={() => void startEnroll()} disabled={busy}>
+                {busy ? "Preparing…" : "Set up authenticator app"}
+              </Button>
+            </div>
+          ) : (
+            <div className="rounded-xl border bg-background p-4">
+              <p className="font-semibold">Scan this QR code</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Scan with your authenticator app, then enter the 6-digit code it shows to finish. The code refreshes every 30 seconds.
+              </p>
+              <div className="mt-4 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+                <div className="rounded-xl border bg-white p-3">
+                  {QRCode ? <QRCode value={enroll.uri} size={180} includeMargin /> : <div className="h-[180px] w-[180px]" />}
+                </div>
+                <div className="min-w-0 flex-1 text-sm">
+                  <p className="font-semibold">Can’t scan?</p>
+                  <p className="mt-1 text-muted-foreground">Enter this setup key manually in your app (spaces don’t matter):</p>
+                  <code className="mt-2 block break-all rounded bg-muted px-2 py-2 font-mono text-xs">{enroll.secret}</code>
+                  <p className="mt-2 text-xs text-muted-foreground">Enrollment expires {new Date(enroll.expiresAt).toLocaleTimeString("en-KE")}.</p>
+                </div>
+              </div>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <input
+                  className="h-10 w-40 rounded-md border bg-background px-3 font-mono tracking-[0.3em]"
+                  inputMode="numeric"
+                  maxLength={6}
+                  placeholder="000000"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  aria-label="6-digit authenticator code"
+                />
+                <Button disabled={busy || code.replace(/\D/g, "").length !== 6} onClick={() => void confirmEnroll()}>
+                  {busy ? "Verifying…" : "Confirm & enable"}
+                </Button>
+                <Button variant="ghost" disabled={busy} onClick={() => { setEnroll(null); setCode(""); }}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }
