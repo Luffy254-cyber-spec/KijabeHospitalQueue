@@ -3,7 +3,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Shield, Users, DoorOpen, Bell, Download, LogOut, UserPlus, Check, X, Megaphone, Trash2, Moon, Plus, Eye, Clock,
-  Archive, RefreshCw,
+  Archive, RefreshCw, FolderDown, FolderCheck, FolderSync,
 } from "lucide-react";
 import { PRIORITY_LABEL, PAYMENT_LABEL } from "@/lib/queue";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,6 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MoonPhaseLive } from "@/lib/moon-phase";
+import {
+  getAutoSaveStatus, pickExportFolder, forgetFolder, writeFileToFolder,
+  triggerDownload, isExportHandled, markExportHandled, seedExportsIfNeeded,
+  buildXlsxFile, type AutoSaveStatus,
+} from "@/lib/auto-export";
 import { capitalizeName } from "@/lib/names";
 import { useIdleLogout } from "@/hooks/use-idle-logout";
 
@@ -190,6 +195,7 @@ function AdminConsole({ email }: { email: string }) {
   const [archives, setArchives] = useState<DataExportRow[]>([]);
   const [archivesLoading, setArchivesLoading] = useState(false);
   const [archiveBusy, setArchiveBusy] = useState(false);
+  const [autoSave, setAutoSave] = useState<AutoSaveStatus>({ kind: "off" });
 
   const load = useCallback(async () => {
     const [s, b, st, svc] = await Promise.all([
@@ -211,12 +217,83 @@ function AdminConsole({ email }: { email: string }) {
     const { data, error } = await supabase.rpc("admin_list_data_exports");
     setArchivesLoading(false);
     if (error) { toast.error(error.message); return; }
-    setArchives((data as unknown as DataExportRow[]) ?? []);
+    const rows = (data as unknown as DataExportRow[]) ?? [];
+    setArchives(rows);
+    void autoExportNew(rows);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const refreshAutoSave = useCallback(async () => {
+    setAutoSave(await getAutoSaveStatus());
+  }, []);
+
+  const enableAutoSave = async () => {
+    const name = await pickExportFolder();
+    if (name) toast.success(`Auto-save on — nightly exports will land in “${name}”`);
+    await refreshAutoSave();
+  };
+
+  const disableAutoSave = async () => {
+    await forgetFolder();
+    toast.success("Auto-save off — exports will keep downloading to Downloads only");
+    await refreshAutoSave();
+  };
+
+  /**
+   * Deliver every archive this dashboard has not seen before: write into the
+   * remembered device folder when enabled, and always trigger the browser
+   * download. Runs on first load and then on a timer so a dashboard left open
+   * across 00:00 (Nairobi) receives the night's export the moment it lands.
+   */
+  const autoExportNew = useCallback(async (rows: DataExportRow[]) => {
+    if (typeof window === "undefined") return;
+    // First run of the feature: don't burst-download everything that already
+    // existed — only archives created from this moment on are auto-delivered.
+    if (seedExportsIfNeeded(rows.map((e) => e.id))) return;
+    const fresh = rows.filter((e) => e.ticket_count > 0 && !isExportHandled(e.id));
+    if (!fresh.length) return;
+    let folderDenied = false;
+    for (const e of fresh) {
+      const { data, error } = await supabase.rpc("admin_get_data_export", { p_id: e.id });
+      if (error || !data) continue;
+      const row = data as { day: string; visits_csv: string; payments_csv: string };
+      const files: { name: string; data: Blob }[] = [];
+      if (row.visits_csv) files.push(buildXlsxFile("visits", row.day, row.visits_csv));
+      if (row.payments_csv) files.push(buildXlsxFile("payments", row.day, row.payments_csv));
+      if (!files.length) continue;
+
+      let savedCount = 0;
+      for (const f of files) {
+        const result = await writeFileToFolder(f.name, f.data);
+        if (result === "saved") savedCount += 1;
+        if (result === "denied") folderDenied = true;
+      }
+      // Slight stagger so the browser's multi-download guard doesn't swallow
+      // the payments file when both land in the same tick.
+      files.forEach((f, i) => {
+        window.setTimeout(() => triggerDownload(f.name, f.data), i * 900);
+      });
+      markExportHandled(e.id);
+      toast.success(
+        savedCount > 0
+          ? `00:00 archive delivered — ${e.ticket_count} visits saved to your device folder (${savedCount}/${files.length} files)`
+          : `00:00 archive delivered — ${e.ticket_count} visits downloaded (${files.length} files in Downloads)`,
+      );
+    }
+    if (folderDenied) {
+      toast.error("Auto-save folder needs permission again — click “Re-link folder”");
+      await refreshAutoSave();
+    }
+  }, [refreshAutoSave]);
+
   useEffect(() => {
+    void refreshAutoSave();
     void loadArchives();
-  }, [loadArchives]);
+    // A dashboard left open across midnight picks the new export up within a
+    // minute of the archive landing.
+    const t = setInterval(() => void loadArchives(), 60_000);
+    return () => clearInterval(t);
+  }, [loadArchives, refreshAutoSave]);
 
   const loadTimesheet = useCallback(async () => {
     setSheetLoading(true);
@@ -1058,7 +1135,33 @@ function AdminConsole({ email }: { email: string }) {
                   <p className="mt-1 text-sm text-muted-foreground">
                     Every 00:00 (Nairobi) fully cleared visits and their payments are exported here first, then deleted.
                     Waiting, called, in-room and pending-payment tickets are always kept.
+                    New exports are delivered automatically as Excel (.xlsx) workbooks: downloaded to this device, and —
+                    once a folder is linked below — also saved straight into it, every night, with no clicks.
                   </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {autoSave.kind === "on" ? (
+                      <>
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                          <FolderCheck className="h-3.5 w-3.5" /> Auto-save on · {autoSave.name}
+                        </span>
+                        <Button size="sm" variant="ghost" onClick={() => void disableAutoSave()}>
+                          Unlink folder
+                        </Button>
+                      </>
+                    ) : autoSave.kind === "needs-permission" ? (
+                      <Button size="sm" variant="outline" onClick={() => void enableAutoSave()}>
+                        <FolderSync className="h-4 w-4" /> Re-link auto-save folder
+                      </Button>
+                    ) : autoSave.kind === "off" ? (
+                      <Button size="sm" variant="outline" onClick={() => void enableAutoSave()}>
+                        <FolderDown className="h-4 w-4" /> Auto-save to a device folder
+                      </Button>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        Folder auto-save needs a Chromium browser (Chrome/Edge) — downloads still work everywhere.
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={() => void loadArchives()} disabled={archivesLoading}>
