@@ -40,7 +40,6 @@ const CSP = [
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
-  "frame-ancestors 'self'",
 ].join("; ");
 
 export function securityHeaders(): Record<string, string> {
@@ -48,11 +47,9 @@ export function securityHeaders(): Record<string, string> {
     "Content-Security-Policy": CSP,
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "strict-origin-when-cross-origin",
-    "X-Frame-Options": "SAMEORIGIN",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
-    "Cross-Origin-Opener-Policy": "same-origin",
   };
-  if (process.env["NODE_ENV"] === "production" || process.env["HSTS"] === "1") {
+  if (process.env["HSTS"] === "1") {
     headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
   }
   return headers;

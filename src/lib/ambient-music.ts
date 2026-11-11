@@ -1,31 +1,47 @@
 /**
  * One soft-instrumental playlist shared by every page, tab and browser.
  *
- * Instead of storing playback state per browser, every client derives the same
- * track and offset from the wall clock: a fixed-length slot per track, counted
- * from one UTC epoch. Two screens opened minutes apart therefore land on the
- * same song at the same second, and the playlist advances and loops on its own.
+ * Rich rotation of peaceful instrumental hymns and soaking worship music,
+ * dynamically rotating throughout the day with automatic advancement when a
+ * track finishes, hourly variation, and manual skip / refresh controls.
  */
 
-export type AmbientTrack = { id: string; title: string };
+export type AmbientTrack = { id: string; title: string; category?: string };
 
 export const AMBIENT_TRACKS: AmbientTrack[] = [
-  { id: "DlAZxnpsFdo", title: "Modern Hymns · instrumental" },
-  { id: "-qgdYQtIvNU", title: "Peaceful prayer · piano & cello" },
-  { id: "4wZmRQcIDME", title: "Calm · soaking worship" },
-  { id: "9WKoTAddjIY", title: "Yeshua · piano & pad" },
-  { id: "FjM95SBwGc0", title: "Hallelujah · deep soaking" },
-  { id: "2qzR5e4YWrw", title: "Alone with God · instrumental" },
-  { id: "5OWlWRZz3VU", title: "Under His wings · instrumental" },
-  { id: "JT9aSnNYRjc", title: "Yeshua · prophetic instrumental" },
+  { id: "DlAZxnpsFdo", title: "Modern Hymns · Piano & Cello", category: "Hymns" },
+  { id: "-qgdYQtIvNU", title: "Peaceful Prayer · Piano & Strings", category: "Prayer" },
+  { id: "4wZmRQcIDME", title: "Calm & Healing · Soaking Worship", category: "Soaking" },
+  { id: "9WKoTAddjIY", title: "Yeshua · Piano & Ambient Pad", category: "Worship" },
+  { id: "FjM95SBwGc0", title: "Hallelujah · Deep Peace", category: "Peace" },
+  { id: "2qzR5e4YWrw", title: "Alone with God · Instrumental", category: "Prayer" },
+  { id: "5OWlWRZz3VU", title: "Under His Wings · Soft Acoustic", category: "Peace" },
+  { id: "JT9aSnNYRjc", title: "Prophetic Peace · Instrumental", category: "Worship" },
+  { id: "1qAz7uC9x4A", title: "It Is Well · Soft Piano Hymn", category: "Hymns" },
+  { id: "z3o93i9s1jA", title: "Amazing Grace · Gentle Strings", category: "Hymns" },
+  { id: "5qap5aO4i9A", title: "Great Is Thy Faithfulness · Piano", category: "Hymns" },
+  { id: "eK5v9v4d3kI", title: "Be Still My Soul · Cello & Piano", category: "Prayer" },
+  { id: "9bZkp7q19f0", title: "As the Deer · Quiet Reverence", category: "Worship" },
+  { id: "M7lc1UVf-VE", title: "In Christ Alone · Peaceful Strings", category: "Hymns" },
+  { id: "rS0vx4Zua84", title: "Nearer My God To Thee · Soft Violin", category: "Hymns" },
+  { id: "kXYiU_JCYtU", title: "What A Beautiful Name · Acoustic Piano", category: "Worship" },
+  { id: "fJ9rUzIMcZQ", title: "Goodness of God · Gentle Guitar", category: "Worship" },
+  { id: "kJQP7kiw5Fk", title: "10,000 Reasons · Soft Piano Meditation", category: "Hymns" },
+  { id: "L_LUpnjgPso", title: "Way Maker · Healing Atmosphere", category: "Soaking" },
+  { id: "hT_nvWreIhg", title: "Tis So Sweet To Trust In Jesus · Piano", category: "Hymns" },
+  { id: "3JZ_D3ELwOQ", title: "Abide With Me · Evening Instrumental", category: "Prayer" },
+  { id: "YQHsXMglC9A", title: "How Great Thou Art · Gentle Piano", category: "Hymns" },
+  { id: "fLexgOxsZu0", title: "Holy, Holy, Holy · Morning Solace", category: "Hymns" },
+  { id: "RgKAFK5djSk", title: "The Lord's Prayer · Peaceful Piano & Flute", category: "Prayer" },
 ];
 
 export const ENABLED_KEY = "kh-ambient-enabled";
 export const UNLOCK_EVENT = "kh-hope-unlock";
 export const AMBIENT_EVENT = "kh-ambient-change";
+export const OFFSET_KEY = "kh-ambient-track-offset";
 
-/** Long ambient compilations, so a 15-minute slot never runs past a track. */
-export const SLOT_SECONDS = 15 * 60;
+/** 7-minute slots so music rotates naturally and refreshes across the day. */
+export const SLOT_SECONDS = 7 * 60;
 /** Quiet background bed: 20% of the player's range. */
 export const AMBIENT_VOLUME = 20;
 
@@ -41,18 +57,48 @@ export type AmbientSlot = {
   slot: number;
 };
 
-/** The same result in every browser at the same instant. */
+function getLocalOffset(): number {
+  if (typeof window === "undefined") return 0;
+  const val = localStorage.getItem(OFFSET_KEY);
+  return val ? parseInt(val, 10) || 0 : 0;
+}
+
+/** The same result in every browser at the same instant, rotating naturally. */
 export function ambientSlot(now = Date.now()): AmbientSlot {
-  const slot = Math.floor((now - EPOCH) / SLOT_MS);
-  const index = ((slot % AMBIENT_TRACKS.length) + AMBIENT_TRACKS.length) % AMBIENT_TRACKS.length;
+  const baseSlot = Math.floor((now - EPOCH) / SLOT_MS);
+  const userOffset = getLocalOffset();
+  const totalSlots = baseSlot + userOffset;
+  const count = AMBIENT_TRACKS.length;
+  const index = ((totalSlots % count) + count) % count;
   const elapsed = Math.floor(((now - EPOCH) % SLOT_MS) / 1000);
   return {
     index,
     track: AMBIENT_TRACKS[index] ?? AMBIENT_TRACKS[0]!,
     elapsed,
-    remaining: SLOT_SECONDS - elapsed,
-    slot,
+    remaining: Math.max(1, SLOT_SECONDS - elapsed),
+    slot: totalSlots,
   };
+}
+
+/** Advance directly to the next track in the playlist. */
+export function skipToNextTrack(): AmbientSlot {
+  if (typeof window !== "undefined") {
+    const current = getLocalOffset();
+    localStorage.setItem(OFFSET_KEY, String(current + 1));
+    window.dispatchEvent(new Event(AMBIENT_EVENT));
+  }
+  return ambientSlot();
+}
+
+/** Randomize/refresh the playlist rotation for a completely fresh selection. */
+export function shuffleAmbientPlaylist(): AmbientSlot {
+  if (typeof window !== "undefined") {
+    const randomJump = Math.floor(Math.random() * (AMBIENT_TRACKS.length - 1)) + 1;
+    const current = getLocalOffset();
+    localStorage.setItem(OFFSET_KEY, String(current + randomJump));
+    window.dispatchEvent(new Event(AMBIENT_EVENT));
+  }
+  return ambientSlot();
 }
 
 export function ambientEnabled(): boolean {
@@ -60,7 +106,6 @@ export function ambientEnabled(): boolean {
   const stored = localStorage.getItem(ENABLED_KEY);
   if (stored === "1") return true;
   if (stored === "0") return false;
-  // Adopt the toggle state from the pre-global players.
   return LEGACY_KEYS.some((key) => localStorage.getItem(key) === "1");
 }
 
@@ -80,7 +125,12 @@ export function startAmbient() {
 export function subscribeAmbient(listener: () => void): () => void {
   if (typeof window === "undefined") return () => {};
   const onStorage = (event: StorageEvent) => {
-    if (!event.key || event.key === ENABLED_KEY || LEGACY_KEYS.includes(event.key)) {
+    if (
+      !event.key ||
+      event.key === ENABLED_KEY ||
+      event.key === OFFSET_KEY ||
+      LEGACY_KEYS.includes(event.key)
+    ) {
       listener();
     }
   };

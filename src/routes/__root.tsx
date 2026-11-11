@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { NavProgress, PageTransition } from "@/components/page-transition";
 import { AmbientMusic } from "@/components/hope-music";
+import { BackToTop } from "@/components/back-to-top";
 
 import appCss from "../styles.css?url";
 import { registerPwa } from "@/lib/pwa";
@@ -153,6 +154,7 @@ function RootComponent() {
       </PageTransition>
       {/* Outside PageTransition so the shared song never restarts on navigation. */}
       <AmbientMusic />
+      <BackToTop />
       <Toaster richColors position="top-center" closeButton duration={4500} />
     </QueryClientProvider>
   );

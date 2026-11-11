@@ -1,0 +1,8 @@
+{
+  "name": "Kijabe Care Flow",
+  "description": "Outpatient queue and ticketing system for AIC Kijabe Hospital with real-time status, kiosk, staff portal, and display.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

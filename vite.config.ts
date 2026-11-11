@@ -24,6 +24,8 @@ function reflectPolyfillFirst() {
 }
 
 export default defineConfig(({ command, mode }) => {
+  const allEnv = loadEnv(mode, process.cwd(), "");
+  Object.assign(process.env, allEnv);
   // Only the public Turnstile site key is extra; everything else stays VITE_.
   const loadedEnv = loadEnv(mode, process.cwd(), ["VITE_", "TURNSTILE_SITE_KEY"]);
   const define = Object.fromEntries(
@@ -63,6 +65,6 @@ export default defineConfig(({ command, mode }) => {
       ...(command === "build" ? [nitro({ defaultPreset: "node-server" })] : []),
       react(),
     ],
-    server: { host: "::", port: 8080 },
+    server: { host: "0.0.0.0", port: 3000, allowedHosts: true },
   };
 });

@@ -1579,7 +1579,7 @@ function SecuritySettings() {
   const [enroll, setEnroll] = useState<{ secret: string; uri: string; expiresAt: string } | null>(null);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
-  const [QRCode, setQRCode] = useState<null | ((p: { value: string; size?: number; includeMargin?: boolean }) => any)>(null);
+  const [QRCode, setQRCode] = useState<null | ((p: { value: string; size?: number; includeMargin?: boolean }) => React.ReactNode)>(null);
 
   const load = useCallback(async () => {
     setLoading(true);

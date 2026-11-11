@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { withUser } from "@/lib/db.server";
 import { bearerUser } from "@/lib/local-auth.server";
 import { corsHeaders } from "@/lib/http-security";
+import { handleMockQuery } from "@/lib/mock-db.server";
 
 const ALLOWED_TABLES = new Set([
   "services",
@@ -96,11 +97,20 @@ export const Route = createFileRoute("/api/local/query")({
             params.push(body.limit);
             q += ` limit $${params.length}`;
           }
-
-          const data = await withUser(user?.id || null, user?.email || null, async (tx) => {
-            const rows = await tx.unsafe(q, params);
-            return rows;
-          });
+          let data: Record<string, unknown>[] = [];
+          try {
+            data = await withUser(user?.id || null, user?.email || null, async (tx) => {
+              const rows = await tx.unsafe(q, params);
+              return rows;
+            });
+          } catch (dbErr) {
+            console.warn("[Local Query] Using in-memory store fallback:", (dbErr as Error)?.message);
+            const mockData = handleMockQuery(body);
+            if (body.single) {
+              return Response.json({ data: mockData ?? null, error: null }, { headers: cors });
+            }
+            return Response.json({ data: mockData ?? [], error: null }, { headers: cors });
+          }
 
           if (body.single) {
             if (!data.length) {

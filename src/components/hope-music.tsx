@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouterState } from "@tanstack/react-router";
-import { ChevronDown, Pause, Play, Waves } from "lucide-react";
+import { ChevronDown, Pause, Play, RefreshCw, SkipForward, Waves } from "lucide-react";
 import {
   AMBIENT_VOLUME,
   SLOT_SECONDS,
   ambientEnabled,
   ambientSlot,
   setAmbientEnabled,
+  skipToNextTrack,
+  shuffleAmbientPlaylist,
   startAmbient,
   subscribeAmbient,
 } from "@/lib/ambient-music";
@@ -268,8 +270,8 @@ export function AmbientMusic() {
               // Rotation is on a wall-clock slot, so the next track is whatever
               // every other page is already on.
               if (e.data === st.ENDED) {
-                if (ambientSlot().slot === loadedSlotRef.current) restartShared();
-                else reloadShared();
+                skipToNextTrack();
+                reloadShared();
               }
             },
             onError: () => {
@@ -364,6 +366,7 @@ export function AmbientMusic() {
           /* ignore */
         }
       }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
 
@@ -403,7 +406,6 @@ export function AmbientMusic() {
 
   useEffect(() => {
     if (ready) setStatus(shouldPlayNow() ? "Hope · soft worship" : "Hope · sound off");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, enabled]);
 
   const live = enabled && !duck;
@@ -463,6 +465,30 @@ export function AmbientMusic() {
               </p>
             </div>
             <div className="hope-panel-actions">
+              <button
+                type="button"
+                className="hope-collapse-btn"
+                onClick={() => {
+                  skipToNextTrack();
+                  reloadShared();
+                }}
+                aria-label="Next track"
+                title="Next song"
+              >
+                <SkipForward className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                className="hope-collapse-btn"
+                onClick={() => {
+                  shuffleAmbientPlaylist();
+                  reloadShared();
+                }}
+                aria-label="Refresh & shuffle playlist"
+                title="Shuffle & refresh"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </button>
               <button
                 type="button"
                 className="hope-collapse-btn"

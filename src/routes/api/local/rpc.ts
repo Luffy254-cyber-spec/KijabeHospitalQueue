@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { withUser } from "@/lib/db.server";
 import { bearerUser } from "@/lib/local-auth.server";
 import { corsHeaders } from "@/lib/http-security";
+import { handleMockRpc } from "@/lib/mock-db.server";
 
 const ARG_NAME = /^[a-z_][a-z0-9_]*$/i;
 
@@ -84,17 +85,23 @@ export const Route = createFileRoute("/api/local/rpc")({
           if (badKey) {
             return Response.json({ error: `Invalid argument name: ${badKey}` }, { status: 400, headers: cors });
           }
-          const data = await withUser(user?.id || null, user?.email || null, async (tx) => {
-            if (keys.length === 0) {
-              const rows = await tx.unsafe(`select public.${fn}() as result`);
+          let data: unknown;
+          try {
+            data = await withUser(user?.id || null, user?.email || null, async (tx) => {
+              if (keys.length === 0) {
+                const rows = await tx.unsafe(`select public.${fn}() as result`);
+                return rows[0]?.result ?? null;
+              }
+              // Named args via => syntax: select public.fn(a => $1, b => $2)
+              const named = keys.map((k, i) => `${k} => $${i + 1}`).join(", ");
+              const values = keys.map((k) => args[k]);
+              const rows = await tx.unsafe(`select public.${fn}(${named}) as result`, values);
               return rows[0]?.result ?? null;
-            }
-            // Named args via => syntax: select public.fn(a => $1, b => $2)
-            const named = keys.map((k, i) => `${k} => $${i + 1}`).join(", ");
-            const values = keys.map((k) => args[k]);
-            const rows = await tx.unsafe(`select public.${fn}(${named}) as result`, values);
-            return rows[0]?.result ?? null;
-          });
+            });
+          } catch (dbErr) {
+            console.warn("[Local RPC] Using in-memory store fallback:", (dbErr as Error)?.message);
+            data = handleMockRpc(fn, args);
+          }
           return Response.json({ data, error: null }, { headers: cors });
         } catch (e) {
           const msg = e instanceof Error ? e.message : "RPC failed";

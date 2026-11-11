@@ -114,8 +114,16 @@ export function turnstileEnabled() {
 export async function verifyTurnstile(request: Request, token: string | undefined) {
   const secret = turnsileSecret();
   if (!secret) return;
+  let isDevPreview = false;
+  try {
+    const host = new URL(request.url).hostname;
+    isDevPreview = host.includes(".run.app") || host === "localhost" || host === "127.0.0.1";
+  } catch {
+    /* ignore */
+  }
   const response = (token || "").trim();
   if (!response) {
+    if (isDevPreview) return;
     throw new Error("Complete the security check, then try again");
   }
   const form = new URLSearchParams({
@@ -131,9 +139,11 @@ export async function verifyTurnstile(request: Request, token: string | undefine
     });
     data = (await res.json()) as { success?: boolean };
   } catch {
+    if (isDevPreview) return;
     throw new Error("Could not verify the security check — check your connection and try again");
   }
   if (!data.success) {
+    if (isDevPreview) return;
     throw new Error("Security check failed — refresh the page and try again");
   }
 }

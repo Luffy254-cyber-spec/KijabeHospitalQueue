@@ -4,6 +4,7 @@ import { Monitor, Tablet, Stethoscope, ArrowRight, Clock3, QrCode, Users } from 
 import { InstallAppButton } from "@/components/install-app-button";
 import { KijabeFooter } from "@/components/kijabe-footer";
 import { HospitalSupportPills } from "@/components/support-pills";
+import { HomeAiNavigator } from "@/components/home-ai-navigator";
 import {
   Carousel,
   CarouselContent,
@@ -225,6 +226,7 @@ function Index() {
         </div>
       </div>
 
+      <HomeAiNavigator />
       <HospitalSupportPills />
       <KijabeFooter />
     </main>

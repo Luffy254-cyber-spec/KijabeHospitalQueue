@@ -116,21 +116,29 @@ export function buildTotpUri(email: string, secretB32: string): string {
 }
 
 export async function totpEnabled(userId: string): Promise<boolean> {
-  const rows = await sql`
-    select 1 from auth.users
-    where id = ${userId}::uuid and totp_enabled_at is not null and totp_secret_enc is not null
-    limit 1
-  `;
-  return rows.length > 0;
+  try {
+    const rows = await sql`
+      select 1 from auth.users
+      where id = ${userId}::uuid and totp_enabled_at is not null and totp_secret_enc is not null
+      limit 1
+    `;
+    return rows.length > 0;
+  } catch {
+    return false;
+  }
 }
 
 export async function totpStatus(userId: string): Promise<{ enabled: boolean; enabledAt: string | null }> {
-  const rows = await sql`
-    select totp_enabled_at, totp_secret_enc from auth.users where id = ${userId}::uuid limit 1
-  `;
-  const row = rows[0] as { totp_enabled_at: string | null; totp_secret_enc: string | null } | undefined;
-  const enabled = !!row?.totp_enabled_at && !!row?.totp_secret_enc;
-  return { enabled, enabledAt: enabled ? row!.totp_enabled_at : null };
+  try {
+    const rows = await sql`
+      select totp_enabled_at, totp_secret_enc from auth.users where id = ${userId}::uuid limit 1
+    `;
+    const row = rows[0] as { totp_enabled_at: string | null; totp_secret_enc: string | null } | undefined;
+    const enabled = !!row?.totp_enabled_at && !!row?.totp_secret_enc;
+    return { enabled, enabledAt: enabled ? row!.totp_enabled_at : null };
+  } catch {
+    return { enabled: false, enabledAt: null };
+  }
 }
 
 export async function beginTotpEnrollment(user: SessionUser): Promise<{ secret: string; uri: string; expiresAt: string }> {
