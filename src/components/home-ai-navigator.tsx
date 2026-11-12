@@ -1,14 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import {
-  Compass,
-  Send,
   Sparkles,
+  Send,
   X,
-  MessageSquare,
   Bot,
   User,
   HelpCircle,
-  ChevronDown,
+  Minimize2,
 } from "lucide-react";
 
 type Message = {
@@ -38,6 +36,12 @@ const SUGGESTED_QUESTIONS = [
     sw: "Nifanye nini mtoto wangu akiwa na homa kali?",
   },
 ];
+
+const pillCls =
+  "group flex h-14 w-14 items-center justify-start overflow-hidden whitespace-nowrap rounded-full bg-gradient-to-r from-[#0c729c] to-[#60a5fa] text-white shadow-lg transition-all duration-300 ease-in-out hover:w-40 hover:from-[#095475] hover:to-[#3b82f6] focus-visible:w-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 active:scale-95";
+const iconCls = "flex h-14 w-14 flex-shrink-0 items-center justify-center";
+const labelCls =
+  "pr-4 text-sm font-semibold opacity-0 transition-opacity delay-100 duration-200 group-hover:opacity-100 group-focus-visible:opacity-100";
 
 export function HomeAiNavigator() {
   const [open, setOpen] = useState(false);
@@ -99,7 +103,7 @@ export function HomeAiNavigator() {
         ...prev,
         {
           role: "model",
-          text: "Pole sana, kulikuwa na hitilafu. Tafadhali tembelea dawati la mapokezi (Registration & Enquiries) kwa usaidizi wa haraka.",
+          text: "Temporary network interruption. Please ask any of our triage nurses or customer service staff nearby for guidance.",
         },
       ]);
     } finally {
@@ -109,143 +113,77 @@ export function HomeAiNavigator() {
 
   return (
     <>
-      {/* Floating Navigator Launcher Button */}
-      <div className="fixed bottom-6 left-6 z-40">
+      {/* Collapsable Blue Launcher Button positioned directly ABOVE the Feedback button (bottom-24 left-6) */}
+      <div className="fixed bottom-24 left-6 z-40 max-sm:bottom-20 max-sm:left-4">
         <button
           type="button"
           onClick={() => setOpen((prev) => !prev)}
-          className="group flex items-center gap-2.5 rounded-full border border-primary/30 bg-card/95 px-4 py-3 text-sm font-semibold text-foreground shadow-xl backdrop-blur transition-all duration-300 hover:scale-105 hover:border-primary hover:bg-card hover:shadow-2xl focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 active:scale-95"
-          aria-expanded={open}
+          title="AIC Kijabe AI Navigator"
+          aria-label="AIC Kijabe AI Navigator"
+          className={pillCls}
         >
-          <div className="relative flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm">
-            <Compass className="h-4 w-4 animate-spin-slow transition-transform group-hover:rotate-45" />
-            <span className="absolute -right-0.5 -top-0.5 flex h-2.5 w-2.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-            </span>
-          </div>
-          <div className="text-left leading-tight">
-            <span className="block font-bold text-primary">AI Navigator</span>
-            <span className="text-[11px] text-muted-foreground">Ask anything · Uliza hapa</span>
-          </div>
+          <span className={iconCls}>
+            <Sparkles className="h-5 w-5" />
+          </span>
+          <span className={labelCls}>AI Navigator</span>
         </button>
       </div>
 
-      {/* Embedded Concierge Banner on Page */}
-      <section className="relative mx-auto mt-12 max-w-6xl px-6">
-        <div className="relative overflow-hidden rounded-3xl border border-primary/25 bg-gradient-to-r from-primary/10 via-card to-primary/5 p-6 shadow-md backdrop-blur sm:p-8">
-          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-            <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2 rounded-full bg-primary/15 px-3 py-1 text-xs font-bold uppercase tracking-wider text-primary">
-                <Sparkles className="h-3.5 w-3.5" />
-                Hospital Navigator AI · Muongozo wa AI
-              </div>
-              <h2 className="mt-3 font-display text-2xl font-bold sm:text-3xl text-foreground">
-                Need help navigating AIC Kijabe Hospital?
-              </h2>
-              <p className="mt-2 text-sm text-muted-foreground sm:text-base">
-                Ask our interactive AI Navigator about which clinic you need, how to check in at the kiosk, using SHA / insurance, or tracking your queue number on your phone.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {SUGGESTED_QUESTIONS.slice(0, 3).map((q, idx) => (
-                  <button
-                    key={idx}
-                    type="button"
-                    onClick={() => {
-                      setOpen(true);
-                      handleSend(activeLang === "sw" ? q.sw : q.en);
-                    }}
-                    className="rounded-full border border-border/80 bg-background/80 px-3.5 py-1.5 text-xs font-medium text-foreground transition hover:border-primary hover:bg-primary/10 hover:text-primary active:scale-95"
-                  >
-                    💡 {activeLang === "sw" ? q.sw : q.en}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2.5 sm:flex-row lg:flex-col xl:flex-row">
-              <button
-                type="button"
-                onClick={() => setOpen(true)}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3.5 text-sm font-bold text-primary-foreground shadow-lg transition duration-200 hover:scale-105 hover:bg-primary/90 hover:shadow-xl active:scale-95"
-              >
-                <MessageSquare className="h-4 w-4" />
-                Ask Navigator AI Now
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveLang((l) => (l === "en" ? "sw" : "en"))}
-                className="inline-flex items-center justify-center gap-1.5 rounded-full border border-border bg-background px-4 py-3.5 text-xs font-semibold text-muted-foreground transition hover:text-foreground"
-              >
-                Lugha: {activeLang === "en" ? "Kiswahili" : "English"}
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Interactive Chat Window Modal */}
+      {/* Floating Collapsible AI Chat Window */}
       {open && (
-        <div className="fixed inset-0 z-50 flex items-end justify-start p-4 sm:p-6 sm:items-end">
-          {/* Backdrop on mobile */}
-          <div
-            className="fixed inset-0 bg-background/60 backdrop-blur-sm sm:hidden"
-            onClick={() => setOpen(false)}
-          />
-
-          <div className="relative z-10 flex h-[85vh] max-h-[640px] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-primary/25 bg-card shadow-2xl animate-in fade-in slide-in-from-bottom-6 duration-300">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-start p-3 sm:p-6 sm:left-6 sm:bottom-20 pointer-events-none">
+          <div className="pointer-events-auto flex flex-col h-[85vh] max-h-[640px] w-full sm:w-[420px] rounded-3xl border border-primary/20 bg-card shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-300">
             {/* Header */}
-            <div className="flex items-center justify-between border-b border-border bg-gradient-to-r from-primary/15 via-card to-card px-5 py-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
-                  <Compass className="h-5 w-5" />
+            <div className="flex items-center justify-between border-b border-border/80 bg-gradient-to-r from-[#0c729c] to-[#60a5fa] px-4 py-3.5 text-white">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 backdrop-blur">
+                  <Sparkles className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <h3 className="font-display text-base font-bold text-foreground flex items-center gap-1.5">
-                    Care Flow Navigator
-                    <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-600">
-                      Online
-                    </span>
-                  </h3>
-                  <p className="text-xs text-muted-foreground">AIC Kijabe Hospital Guide · Bilingual</p>
+                  <h3 className="text-sm font-bold leading-tight">AIC Kijabe AI Navigator</h3>
+                  <p className="text-[11px] text-white/80 leading-tight">
+                    Care Flow Guide · English & Swahili
+                  </p>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => setActiveLang((l) => (l === "en" ? "sw" : "en"))}
-                  className="rounded-lg border border-border/80 px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"
+                  className="rounded-full bg-white/20 px-2 py-0.5 text-[11px] font-semibold text-white hover:bg-white/30 transition"
+                  title="Switch Language"
                 >
-                  {activeLang === "en" ? "Kiswahili" : "English"}
+                  {activeLang === "en" ? "Swahili" : "English"}
                 </button>
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-white hover:bg-white/30 transition"
                   aria-label="Close"
+                  title="Close"
                 >
-                  <X className="h-4 w-4" />
+                  <Minimize2 className="h-4 w-4" />
                 </button>
               </div>
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-background/50">
               {messages.map((m, idx) => (
                 <div
                   key={idx}
                   className={`flex gap-2.5 ${m.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   {m.role === "model" && (
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary mt-1">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary mt-1">
                       <Bot className="h-4 w-4" />
                     </div>
                   )}
                   <div
-                    className={`max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                    className={`max-w-[84%] rounded-2xl px-4 py-2.5 text-xs sm:text-sm leading-relaxed shadow-xs ${
                       m.role === "user"
-                        ? "bg-primary text-primary-foreground rounded-br-none"
-                        : "bg-muted/70 text-foreground border border-border/60 rounded-bl-none shadow-xs"
+                        ? "rounded-br-none bg-primary text-primary-foreground font-medium"
+                        : "rounded-bl-none border border-border bg-card text-foreground"
                     }`}
                   >
                     <div className="whitespace-pre-line">{m.text}</div>
@@ -268,7 +206,9 @@ export function HomeAiNavigator() {
                       <span className="h-2 w-2 rounded-full bg-primary animate-bounce" />
                       <span className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:0.2s]" />
                       <span className="h-2 w-2 rounded-full bg-primary animate-bounce [animation-delay:0.4s]" />
-                      <span className="ml-1 text-xs">Thinking... / Inatafuta majibu...</span>
+                      <span className="ml-1 text-xs">
+                        {activeLang === "sw" ? "Inatafuta majibu..." : "Searching guidance..."}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -277,7 +217,7 @@ export function HomeAiNavigator() {
             </div>
 
             {/* Quick questions chips */}
-            <div className="border-t border-border/50 bg-background/80 px-4 py-2.5">
+            <div className="border-t border-border/50 bg-background/80 px-3.5 py-2">
               <div className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground mb-1.5">
                 <HelpCircle className="h-3 w-3 text-primary" />
                 Quick topics:
@@ -289,7 +229,7 @@ export function HomeAiNavigator() {
                     type="button"
                     onClick={() => handleSend(activeLang === "sw" ? q.sw : q.en)}
                     disabled={loading}
-                    className="shrink-0 rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground hover:border-primary hover:text-primary transition disabled:opacity-50"
+                    className="shrink-0 rounded-full border border-border bg-card px-2.5 py-1 text-[11px] text-muted-foreground hover:border-primary hover:text-primary transition disabled:opacity-50"
                   >
                     {activeLang === "sw" ? q.sw : q.en}
                   </button>
@@ -312,16 +252,16 @@ export function HomeAiNavigator() {
                   onChange={(e) => setInput(e.target.value)}
                   placeholder={
                     activeLang === "sw"
-                      ? "Uliza swali lolote kuhusu huduma za hospitali..."
+                      ? "Uliza swali kuhusu huduma za hospitali..."
                       : "Ask any question about hospital navigation..."
                   }
                   disabled={loading}
-                  className="h-11 flex-1 rounded-xl border border-input bg-background px-4 text-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50"
+                  className="h-10 flex-1 rounded-xl border border-input bg-background px-3.5 text-xs sm:text-sm outline-none transition focus:border-primary focus:ring-1 focus:ring-primary disabled:opacity-50"
                 />
                 <button
                   type="submit"
                   disabled={!input.trim() || loading}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow transition hover:bg-primary/90 disabled:opacity-40"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow transition hover:bg-primary/90 disabled:opacity-40"
                   aria-label="Send"
                 >
                   <Send className="h-4 w-4" />

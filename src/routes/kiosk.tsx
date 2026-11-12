@@ -302,31 +302,6 @@ function Kiosk() {
               <button onClick={lookup} disabled={busy || !namesOk || (kind === "phone" ? idValue.length !== 9 : idValue.length < 4)}
                 className="col-span-2 h-16 rounded-2xl bg-primary text-xl font-bold text-primary-foreground disabled:opacity-40">{L("findRecord")}</button>
             </div>
-
-            <div className="mt-6">
-              <KioskPatientAi
-                lang={lang}
-                patientName={[firstName, lastName, surname].filter(Boolean).join(" ")}
-                onSelectAction={(action) => {
-                  if (action === "new") {
-                    setStep("register");
-                  } else if (action === "focus_phone") {
-                    setKind("phone");
-                    setIdValue("");
-                  } else if (action === "focus_card") {
-                    setKind("card");
-                    setIdValue("");
-                  } else if (action === "emergency") {
-                    toast.error(
-                      lang === "sw"
-                        ? "Nenda moja kwa moja kwenye Idara ya Dharura (Casualty) mara moja! Wafanyakazi watakusaidia haraka."
-                        : "Please proceed directly to the Emergency / Casualty department immediately! Staff will assist right away.",
-                      { duration: 8000 }
-                    );
-                  }
-                }}
-              />
-            </div>
           </div>
         )}
 
@@ -616,6 +591,30 @@ function Kiosk() {
           </div>
         )}
       </section>
+
+      <KioskPatientAi
+        lang={lang}
+        patientName={[firstName, lastName, surname].filter(Boolean).join(" ")}
+        step={step}
+        onSelectAction={(action) => {
+          if (action === "new") {
+            setStep("register");
+          } else if (action === "focus_phone") {
+            setKind("phone");
+            setIdValue("");
+          } else if (action === "focus_card") {
+            setKind("card");
+            setIdValue("");
+          } else if (action === "emergency") {
+            toast.error(
+              lang === "sw"
+                ? "Nenda moja kwa moja kwenye Idara ya Dharura (Casualty) mara moja! Wafanyakazi watakusaidia haraka."
+                : "Please proceed directly to the Emergency / Casualty department immediately! Staff will assist right away.",
+              { duration: 8000 }
+            );
+          }
+        }}
+      />
     </main>
   );
 }

@@ -16,13 +16,13 @@ declare global {
   }
 }
 
-function envValue(key: string): string {
-  const env = import.meta.env as unknown as Record<string, string | undefined>;
-  return (env[key] || "").trim();
-}
-
 export function turnstileSiteKey(): string {
-  return envValue("TURNSTILE_SITE_KEY") || envValue("VITE_TURNSTILE_SITE_KEY");
+  const direct =
+    import.meta.env.VITE_TURNSTILE_SITE_KEY ||
+    import.meta.env.TURNSTILE_SITE_KEY ||
+    (typeof window !== "undefined" && (window as unknown as { __TURNSTILE_SITE_KEY__?: string }).__TURNSTILE_SITE_KEY__) ||
+    "0x4AAAAAAF4r5nEqbl8uWZzb";
+  return (direct || "").trim();
 }
 
 export function turnstileConfigured() {
@@ -39,25 +39,41 @@ function loadTurnstile(): Promise<TurnstileApi> {
       resolve(window.turnstile);
       return;
     }
-    if (!document.querySelector("script[data-kh-turnstile]")) {
-      const script = document.createElement("script");
+
+    let resolved = false;
+    const onDone = () => {
+      if (resolved) return;
+      if (window.turnstile) {
+        resolved = true;
+        resolve(window.turnstile);
+      }
+    };
+
+    let script = document.querySelector<HTMLScriptElement>("script[data-kh-turnstile]");
+    if (!script) {
+      script = document.createElement("script");
       script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
       script.async = true;
       script.defer = true;
       script.dataset["khTurnstile"] = "1";
+      script.onload = () => setTimeout(onDone, 50);
       script.onerror = () => reject(new Error("turnstile script failed"));
       document.head.appendChild(script);
+    } else {
+      script.addEventListener("load", () => setTimeout(onDone, 50));
     }
+
     const started = Date.now();
     const poll = window.setInterval(() => {
       if (window.turnstile) {
         window.clearInterval(poll);
+        resolved = true;
         resolve(window.turnstile);
       } else if (Date.now() - started > 10000) {
         window.clearInterval(poll);
-        reject(new Error("turnstile timeout"));
+        if (!resolved) reject(new Error("turnstile timeout"));
       }
-    }, 150);
+    }, 100);
   });
 }
 
@@ -76,6 +92,7 @@ export function Turnstile({ onToken, className }: Props) {
     void loadTurnstile()
       .then((api) => {
         if (gone || !hostRef.current) return;
+        hostRef.current.innerHTML = "";
         widgetId = api.render(hostRef.current, {
           sitekey: key,
           theme: "light",
@@ -85,7 +102,8 @@ export function Turnstile({ onToken, className }: Props) {
           "error-callback": () => onToken(""),
         });
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("Turnstile failed to load:", err);
         if (!gone) setFailed(true);
       });
 

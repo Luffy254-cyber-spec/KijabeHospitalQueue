@@ -28,9 +28,17 @@ export default defineConfig(({ command, mode }) => {
   Object.assign(process.env, allEnv);
   // Only the public Turnstile site key is extra; everything else stays VITE_.
   const loadedEnv = loadEnv(mode, process.cwd(), ["VITE_", "TURNSTILE_SITE_KEY"]);
-  const define = Object.fromEntries(
+  const siteKey =
+    process.env.VITE_TURNSTILE_SITE_KEY ||
+    process.env.TURNSTILE_SITE_KEY ||
+    loadedEnv.VITE_TURNSTILE_SITE_KEY ||
+    loadedEnv.TURNSTILE_SITE_KEY ||
+    "0x4AAAAAAF4r5nEqbl8uWZzb";
+  const define: Record<string, string> = Object.fromEntries(
     Object.entries(loadedEnv).map(([key, value]) => [`import.meta.env.${key}`, JSON.stringify(value)]),
   );
+  define["import.meta.env.VITE_TURNSTILE_SITE_KEY"] = JSON.stringify(siteKey);
+  define["import.meta.env.TURNSTILE_SITE_KEY"] = JSON.stringify(siteKey);
 
   return {
     define,
