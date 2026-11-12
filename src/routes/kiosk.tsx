@@ -8,6 +8,7 @@ import { t, type Lang, type Key } from "@/lib/i18n";
 import { publicAppOrigin, ticketTrackUrl } from "@/lib/public-url";
 import { capitalizeName } from "@/lib/names";
 import { KioskPatientAi } from "@/components/kiosk-patient-ai";
+import { LiveWeatherClock } from "@/components/live-weather-clock";
 
 export const Route = createFileRoute("/kiosk")({
   head: () => ({
@@ -244,11 +245,14 @@ function Kiosk() {
             <p className="font-display text-2xl font-bold">{L("welcome")}</p>
           </div>
         </div>
-        {back[step] && (
-          <button onClick={() => setStep(back[step]!)} className="flex items-center gap-2 rounded-full bg-primary-foreground/15 px-5 py-3 text-lg font-semibold">
-            <ArrowLeft className="h-5 w-5" /> {L("back")}
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          <LiveWeatherClock variant="on-primary" />
+          {back[step] && (
+            <button onClick={() => setStep(back[step]!)} className="flex items-center gap-2 rounded-full bg-primary-foreground/15 px-5 py-3 text-lg font-semibold">
+              <ArrowLeft className="h-5 w-5" /> {L("back")}
+            </button>
+          )}
+        </div>
       </header>
 
       <section key={step} className="step-enter mx-auto flex w-full max-w-4xl flex-1 flex-col overflow-y-auto px-6 py-8">

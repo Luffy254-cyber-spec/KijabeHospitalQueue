@@ -1,9 +1,18 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 
+const apiKey =
+  (typeof import.meta !== "undefined" && import.meta.env
+    ? import.meta.env.VITE_FIREBASE_API_KEY || import.meta.env.FIREBASE_API_KEY
+    : undefined) ||
+  (typeof process !== "undefined"
+    ? process.env?.FIREBASE_API_KEY || process.env?.VITE_FIREBASE_API_KEY
+    : undefined) ||
+  "";
+
 /** Email confirmation only. Staff records stay in Postgres. Analytics is not started. */
 const firebaseConfig = {
-  apiKey: "AIzaSyAMRu6hwOq0Djh3qj6yI43NunsPXRYKnJw",
+  apiKey,
   authDomain: "kijabeoutflow.firebaseapp.com",
   projectId: "kijabeoutflow",
   storageBucket: "kijabeoutflow.firebasestorage.app",

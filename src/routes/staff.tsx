@@ -16,6 +16,7 @@ import { BillingPanel } from "@/components/billing-panel";
 import { StaffOceanScene } from "@/components/staff-ocean-scene";
 import { ambientEnabled, setAmbientEnabled, startAmbient, subscribeAmbient } from "@/lib/ambient-music";
 import { MoonPhaseLive } from "@/lib/moon-phase";
+import { LiveWeatherClock } from "@/components/live-weather-clock";
 import { capitalizeName } from "@/lib/names";
 import { useIdleLogout } from "@/hooks/use-idle-logout";
 import { useBiometrics } from "@/hooks/use-biometrics";
@@ -302,7 +303,8 @@ function Login() {
       calmAmbient
     >
       <form onSubmit={submit} className="staff-ocean-card">
-        <div className="mb-3 flex justify-center">
+        <div className="mb-3 flex flex-wrap items-center justify-center gap-2">
+          <LiveWeatherClock className="border-white/30 bg-white/15 text-[#0b2c40] shadow-none backdrop-blur" />
           <MoonPhaseLive className="border-white/30 bg-white/15 text-[#0b2c40] shadow-none backdrop-blur" />
         </div>
         <p className="text-xs font-semibold uppercase tracking-[0.2em] opacity-80">AIC Kijabe Hospital</p>
@@ -884,6 +886,7 @@ function Console({ email, userId }: { email: string; userId: string }) {
           </Select>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+          <LiveWeatherClock />
           {isSuperadmin && <Link to="/admin" className="font-semibold text-primary underline">Superadmin</Link>}
           <Link to="/automation" className="font-semibold text-primary underline">Automation settings</Link>
           <MoonPhaseLive className="hidden lg:inline-flex scale-90 origin-right" />

@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MoonPhaseLive } from "@/lib/moon-phase";
+import { LiveWeatherClock } from "@/components/live-weather-clock";
 import {
   getAutoSaveStatus, pickExportFolder, forgetFolder, writeFileToFolder,
   triggerDownload, isExportHandled, markExportHandled, seedExportsIfNeeded,
@@ -543,6 +544,7 @@ function AdminConsole({ email }: { email: string }) {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <LiveWeatherClock />
           <MoonPhaseLive />
           <Link to="/staff" className="text-sm font-semibold text-primary underline">Observe staff rooms</Link>
           <span className="text-sm text-muted-foreground">{email}</span>

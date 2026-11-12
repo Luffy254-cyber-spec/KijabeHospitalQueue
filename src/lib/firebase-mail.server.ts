@@ -2,7 +2,7 @@ import { createHash, createHmac, randomBytes, randomInt } from "node:crypto";
 import { sql } from "@/lib/db.server";
 import { sendBrandMail, smtpConfigured } from "@/lib/mail.server";
 
-const API_KEY = "AIzaSyAMRu6hwOq0Djh3qj6yI43NunsPXRYKnJw";
+const API_KEY = (process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY || "").trim();
 const AUTH = "https://identitytoolkit.googleapis.com/v1";
 
 async function post<T>(path: string, body: Record<string, unknown>): Promise<T> {

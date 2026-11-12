@@ -24,6 +24,10 @@ services:
         generateValue: true
       - key: GEMINI_API_KEY
         sync: false
+      - key: FIREBASE_API_KEY
+        sync: false
+      - key: VITE_FIREBASE_API_KEY
+        sync: false
       - key: MPESA_ENV
         value: production
       - key: MPESA_SHORTCODE

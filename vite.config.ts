@@ -39,6 +39,11 @@ export default defineConfig(({ command, mode }) => {
   );
   define["import.meta.env.VITE_TURNSTILE_SITE_KEY"] = JSON.stringify(siteKey);
   define["import.meta.env.TURNSTILE_SITE_KEY"] = JSON.stringify(siteKey);
+  const fbKey = process.env.VITE_FIREBASE_API_KEY || process.env.FIREBASE_API_KEY || loadedEnv.VITE_FIREBASE_API_KEY || loadedEnv.FIREBASE_API_KEY || "";
+  if (fbKey) {
+    define["import.meta.env.VITE_FIREBASE_API_KEY"] = JSON.stringify(fbKey);
+    define["import.meta.env.FIREBASE_API_KEY"] = JSON.stringify(fbKey);
+  }
 
   return {
     define,
