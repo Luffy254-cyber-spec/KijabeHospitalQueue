@@ -307,6 +307,11 @@ npm run dev                 # http://localhost:8080
 
 Small details matter here:
 
+- **Exact Kijabe Brand Palette:** Uses precise official colors (`#0c729c`, `#0a2233`, `#159ed5`, `#008080`, `#f0f7fa`) with a fluid borderless medical glass navbar featuring a subtle moving sheen animation.
+- **Christian Instrumental & Worship Playlist:** Curated ambient background music featuring 24 diverse Christian instrumental and worship tracks, looping seamlessly without interruption across pages.
+- **Faith-Based Cursor Trail:** Interactive cursor following animation displaying faith and healthcare symbols (`†`, `✚`, `✨`).
+- **Real-Time EAT Weather & Clock:** Live Nairobi clock and weather forecast mounted across Staff, Kiosk, and Superadmin headers.
+- **Gemini-Powered AI Navigators:** Dedicated collapsible blue gradient home navigator and bilingual Kiosk patient support assistant.
 - The landing page carries the hospital’s floating **Feedback** and **Email** pills, with the same gradient, expansion and easing as [kijabehospital.or.ke](https://kijabehospital.or.ke).
 - Footer social links idle in a single uniform navy and only ignite to their brand color on hover, with a sticky zoom and a one-shot 3D flip.
 - Motion is decorative, never load-bearing: everything degrades under `prefers-reduced-motion`.

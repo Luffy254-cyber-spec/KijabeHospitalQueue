@@ -100,12 +100,12 @@ function Index() {
       <div className="pointer-events-none absolute -left-24 top-10 h-72 w-72 rounded-full bg-primary/20 blur-3xl home-blob" aria-hidden />
       <div className="pointer-events-none absolute -right-16 bottom-20 h-80 w-80 rounded-full bg-accent/40 blur-3xl home-blob-delay" aria-hidden />
 
-      <header className="relative z-10 mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-5">
-        <Link to="/" className="group flex items-center gap-3">
+      <header className="relative z-10 w-full px-8 py-4 flex items-center justify-between gap-4 medical-glass-nav border-0 shadow-none">
+        <Link to="/" className="group flex items-center gap-3 transition duration-300">
           <img
             src="/brand/kijabe-logo.png"
             alt="AIC Kijabe Hospital"
-            className="h-11 w-auto object-contain transition duration-300 group-hover:scale-105"
+            className="h-11 w-auto object-contain transition duration-300 group-hover:scale-105 drop-shadow-xs"
           />
           <span className="hidden whitespace-nowrap font-display text-lg font-bold text-foreground sm:inline">
             Kijabe <span className="text-primary">Care Flow</span>
