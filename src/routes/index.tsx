@@ -35,6 +35,7 @@ const slides = [
     title: "Self check-in kiosk",
     body: "Pick a service, set triage priority, and get a ticket — English & Kiswahili.",
     accent: "from-[#159ed5] to-[#102a43]",
+    image: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&w=1200&q=80",
   },
   {
     to: "/display" as const,
@@ -43,6 +44,7 @@ const slides = [
     title: "Live TV display",
     body: "Numbers being called, room directions, and a carousel synced to announcements.",
     accent: "from-[#102a43] to-[#159ed5]",
+    image: "https://images.unsplash.com/photo-1586773860418-d37222d8fce3?auto=format&fit=crop&w=1200&q=80",
   },
   {
     to: "/staff" as const,
@@ -51,6 +53,7 @@ const slides = [
     title: "Staff console",
     body: "Call next, recall, transfer, register hospital numbers, and bill at the desk.",
     accent: "from-[#159ed5] via-[#97c3db] to-[#102a43]",
+    image: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&w=1200&q=80",
   },
   {
     to: "/kiosk" as const,
@@ -59,6 +62,7 @@ const slides = [
     title: "Scan & track your place",
     body: "Every ticket shows a QR code patients can scan to follow the queue live.",
     accent: "from-[#102a43] via-[#159ed5] to-[#97c3db]",
+    image: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1200&q=80",
   },
 ] as const;
 
@@ -148,19 +152,23 @@ function Index() {
                 <CarouselItem key={s.title} className="md:basis-4/5 lg:basis-3/4">
                   <div
                     className={cn(
-                      "relative overflow-hidden rounded-[1.75rem] border border-white/20 bg-gradient-to-br p-8 text-white shadow-xl sm:p-12",
-                      s.accent,
+                      "relative overflow-hidden rounded-[1.75rem] border border-white/20 bg-card p-8 text-white shadow-xl sm:p-12",
                     )}
                   >
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.22),transparent_55%)]" />
-                    <div className="relative">
-                      <s.icon className="h-10 w-10 opacity-90" />
-                      <p className="mt-6 text-xs font-semibold uppercase tracking-[0.25em] text-white/75">{s.eyebrow}</p>
-                      <h2 className="mt-2 font-display text-3xl font-bold sm:text-4xl">{s.title}</h2>
-                      <p className="mt-3 max-w-xl text-base text-white/85 sm:text-lg">{s.body}</p>
+                    <div
+                      className="absolute inset-0 bg-cover bg-center transition-transform duration-700 hover:scale-105"
+                      style={{ backgroundImage: `url(${s.image})` }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#0a2233]/95 via-[#0c729c]/85 to-[#159ed5]/50 backdrop-blur-[1px]" />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.25),transparent_60%)]" />
+                    <div className="relative z-10">
+                      <s.icon className="h-10 w-10 opacity-95 drop-shadow-md" />
+                      <p className="mt-6 text-xs font-semibold uppercase tracking-[0.25em] text-white/90">{s.eyebrow}</p>
+                      <h2 className="mt-2 font-display text-3xl font-bold sm:text-4xl text-white drop-shadow-sm">{s.title}</h2>
+                      <p className="mt-3 max-w-xl text-base text-white/90 sm:text-lg drop-shadow-xs">{s.body}</p>
                       <Link
                         to={s.to}
-                        className="mt-8 inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-bold text-[#102a43] transition hover:scale-[1.03] hover:shadow-lg"
+                        className="mt-8 inline-flex items-center gap-2 rounded-full bg-white px-6 py-3.5 text-sm font-bold text-[#0a2233] shadow-lg transition duration-200 hover:scale-105 hover:bg-white/95 hover:shadow-xl active:scale-95"
                       >
                         Open {s.eyebrow.toLowerCase()} <ArrowRight className="h-4 w-4" />
                       </Link>

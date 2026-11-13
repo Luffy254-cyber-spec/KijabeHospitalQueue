@@ -379,42 +379,71 @@ html {
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-/* AIC Kijabe Hospital brand: Curious Blue #159ed5, Elephant #102a43, Morning Glory #97c3db */
+/* AIC Kijabe Hospital brand: Deep Navy #0a2233, Medical Blue #0c729c, Curious Blue #159ed5, Healing Mint #008080, Morning Sky #f0f7fa */
 :root {
-  --radius: 0.75rem;
-  --background: #f4f9fc;
-  --foreground: #102a43;
+  --radius: 0.85rem;
+  --background: #f0f7fa;
+  --foreground: #0a2233;
   --card: #ffffff;
-  --card-foreground: #102a43;
+  --card-foreground: #0a2233;
   --popover: #ffffff;
-  --popover-foreground: #102a43;
-  --primary: #159ed5;
+  --popover-foreground: #0a2233;
+  --primary: #0c729c;
   --primary-foreground: #ffffff;
-  --secondary: #e8f4fa;
-  --secondary-foreground: #102a43;
-  --muted: #eef6fb;
-  --muted-foreground: #4a657a;
-  --accent: #97c3db;
-  --accent-foreground: #102a43;
-  --destructive: #c62828;
+  --secondary: #e2f2f8;
+  --secondary-foreground: #0a2233;
+  --muted: #eaf4f8;
+  --muted-foreground: #486a82;
+  --accent: #159ed5;
+  --accent-foreground: #ffffff;
+  --destructive: #d32f2f;
   --destructive-foreground: #ffffff;
-  --success: #1b7f4e;
-  --border: #c5dce8;
-  --input: #c5dce8;
-  --ring: #159ed5;
-  --chart-1: #159ed5;
-  --chart-2: #102a43;
-  --chart-3: #c62828;
-  --chart-4: #97c3db;
-  --chart-5: #1b7f4e;
-  --sidebar: #e8f4fa;
-  --sidebar-foreground: #102a43;
-  --sidebar-primary: #159ed5;
+  --success: #008080;
+  --border: #bce0ef;
+  --input: #bce0ef;
+  --ring: #0c729c;
+  --chart-1: #0c729c;
+  --chart-2: #159ed5;
+  --chart-3: #d32f2f;
+  --chart-4: #008080;
+  --chart-5: #0a2233;
+  --sidebar: #e2f2f8;
+  --sidebar-foreground: #0a2233;
+  --sidebar-primary: #0c729c;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #d6ebf5;
-  --sidebar-accent-foreground: #102a43;
-  --sidebar-border: #c5dce8;
-  --sidebar-ring: #159ed5;
+  --sidebar-accent: #cbe7f2;
+  --sidebar-accent-foreground: #0a2233;
+  --sidebar-border: #bce0ef;
+  --sidebar-ring: #0c729c;
+}
+
+/* Extra animation utilities */
+.animate-float-slow {
+  animation: float-slow 8s ease-in-out infinite;
+}
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-8px) rotate(1deg); }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 12px rgba(12, 114, 156, 0.35)); }
+  50% { opacity: 0.65; filter: drop-shadow(0 0 4px rgba(12, 114, 156, 0.15)); }
+}
+
+.animate-shimmer-text {
+  background: linear-gradient(90deg, #0a2233 0%, #0c729c 35%, #159ed5 50%, #0c729c 65%, #0a2233 100%);
+  background-size: 200% auto;
+  color: transparent;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: shimmer-text 6s linear infinite;
+}
+@keyframes shimmer-text {
+  to { background-position: 200% center; }
 }
 
 .dark {
